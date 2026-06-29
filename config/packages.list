@@ -1,0 +1,11 @@
+# Dev workstation packages for winget
+# Format: ACTION|WINGET_ID|DISPLAY_NAME
+# ACTION: upgrade | install
+#
+upgrade|OpenJS.NodeJS.LTS|Node.js LTS
+upgrade|Microsoft.PowerShell|PowerShell 7
+upgrade|GoLang.Go|Go
+upgrade|Microsoft.VisualStudioCode|Visual Studio Code
+upgrade|PHP.PHP.8.4|PHP 8.4
+upgrade|Git.Git|Git
+upgrade|GitHub.cli|GitHub CLI
