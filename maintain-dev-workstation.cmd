@@ -25,6 +25,13 @@ set "SKIP_PIP=0"
 set "SKIP_WINGET=0"
 set "INSTALL_OPENCLAW=0"
 set "INSTALL_OPENROUTER=0"
+set "INSTALL_CURSOR=0"
+set "INSTALL_ANTIGRAVITY=0"
+set "INSTALL_ANTIGRAVITY_CLI=0"
+set "INSTALL_CLAUDE_DESKTOP=0"
+set "INSTALL_CLAUDE_CODE=0"
+set "INSTALL_PERPLEXITY=0"
+set "INSTALL_PERPLEXITY_COMET=0"
 set "OPENCLAW_ONBOARD=0"
 set "OPENCLAW_INSTALL_METHOD=installer"
 set "OPENROUTER_CLI_PACKAGE=@openrouter/cli"
@@ -38,6 +45,14 @@ if /i "%~1"=="--skip-pip" set "SKIP_PIP=1"
 if /i "%~1"=="--skip-winget" set "SKIP_WINGET=1"
 if /i "%~1"=="--with-openclaw" set "INSTALL_OPENCLAW=1"
 if /i "%~1"=="--with-openrouter" set "INSTALL_OPENROUTER=1"
+if /i "%~1"=="--with-cursor" set "INSTALL_CURSOR=1"
+if /i "%~1"=="--with-antigravity" set "INSTALL_ANTIGRAVITY=1"
+if /i "%~1"=="--with-antigravity-cli" set "INSTALL_ANTIGRAVITY_CLI=1"
+if /i "%~1"=="--with-claude" set "INSTALL_CLAUDE_DESKTOP=1"
+if /i "%~1"=="--with-claude-code" set "INSTALL_CLAUDE_CODE=1"
+if /i "%~1"=="--with-perplexity" set "INSTALL_PERPLEXITY=1"
+if /i "%~1"=="--with-perplexity-comet" set "INSTALL_PERPLEXITY_COMET=1"
+if /i "%~1"=="--with-ai-apps" call :enable_all_ai_apps
 if /i "%~1"=="--openclaw-onboard" set "OPENCLAW_ONBOARD=1"
 if /i "%~1"=="--openclaw-npm" set "OPENCLAW_INSTALL_METHOD=npm"
 if /i "%~1"=="--openrouter-key" (
@@ -73,7 +88,16 @@ if "%SKIP_NPM%"=="0" call :run_npm_maintenance
 set "NEED_OPTIONAL=0"
 if "!INSTALL_OPENCLAW!"=="1" set "NEED_OPTIONAL=1"
 if "!INSTALL_OPENROUTER!"=="1" set "NEED_OPTIONAL=1"
+set "NEED_OPTIONAL_APPS=0"
+if "!INSTALL_CURSOR!"=="1" set "NEED_OPTIONAL_APPS=1"
+if "!INSTALL_ANTIGRAVITY!"=="1" set "NEED_OPTIONAL_APPS=1"
+if "!INSTALL_ANTIGRAVITY_CLI!"=="1" set "NEED_OPTIONAL_APPS=1"
+if "!INSTALL_CLAUDE_DESKTOP!"=="1" set "NEED_OPTIONAL_APPS=1"
+if "!INSTALL_CLAUDE_CODE!"=="1" set "NEED_OPTIONAL_APPS=1"
+if "!INSTALL_PERPLEXITY!"=="1" set "NEED_OPTIONAL_APPS=1"
+if "!INSTALL_PERPLEXITY_COMET!"=="1" set "NEED_OPTIONAL_APPS=1"
 if "!NEED_OPTIONAL!"=="1" call :run_optional_ai
+if "!NEED_OPTIONAL_APPS!"=="1" call :run_optional_apps
 call :run_health_checks
 call :print_summary
 
@@ -97,6 +121,14 @@ echo   --with-openclaw              Install OpenClaw (official install.ps1)
 echo   --openclaw-onboard           Full install with interactive onboarding
 echo   --openclaw-npm               Use npm instead of install.ps1
 echo   --with-openrouter            Configure OpenRouter + install CLI
+echo   --with-cursor                Install or upgrade Cursor IDE
+echo   --with-antigravity           Install or upgrade Antigravity IDE
+echo   --with-antigravity-cli       Install or upgrade Antigravity CLI
+echo   --with-claude                Install or upgrade Claude desktop app
+echo   --with-claude-code           Install or upgrade Claude Code CLI
+echo   --with-perplexity            Install or upgrade Perplexity app
+echo   --with-perplexity-comet      Install or upgrade Perplexity Comet browser
+echo   --with-ai-apps               Install all optional AI apps above
 echo   --openrouter-key KEY         OpenRouter API key (sk-or-v1-...)
 echo   --help                       Show this help
 echo.
@@ -136,6 +168,13 @@ for /f "usebackq eol=# tokens=1,* delims==" %%a in ("%OPTIONAL_FILE%") do (
         if defined VAL set "VAL=!VAL: =!"
         if /i "!KEY!"=="INSTALL_OPENCLAW" if "!INSTALL_OPENCLAW!"=="0" set "INSTALL_OPENCLAW=!VAL!"
         if /i "!KEY!"=="INSTALL_OPENROUTER" if "!INSTALL_OPENROUTER!"=="0" set "INSTALL_OPENROUTER=!VAL!"
+        if /i "!KEY!"=="INSTALL_CURSOR" if "!INSTALL_CURSOR!"=="0" set "INSTALL_CURSOR=!VAL!"
+        if /i "!KEY!"=="INSTALL_ANTIGRAVITY" if "!INSTALL_ANTIGRAVITY!"=="0" set "INSTALL_ANTIGRAVITY=!VAL!"
+        if /i "!KEY!"=="INSTALL_ANTIGRAVITY_CLI" if "!INSTALL_ANTIGRAVITY_CLI!"=="0" set "INSTALL_ANTIGRAVITY_CLI=!VAL!"
+        if /i "!KEY!"=="INSTALL_CLAUDE_DESKTOP" if "!INSTALL_CLAUDE_DESKTOP!"=="0" set "INSTALL_CLAUDE_DESKTOP=!VAL!"
+        if /i "!KEY!"=="INSTALL_CLAUDE_CODE" if "!INSTALL_CLAUDE_CODE!"=="0" set "INSTALL_CLAUDE_CODE=!VAL!"
+        if /i "!KEY!"=="INSTALL_PERPLEXITY" if "!INSTALL_PERPLEXITY!"=="0" set "INSTALL_PERPLEXITY=!VAL!"
+        if /i "!KEY!"=="INSTALL_PERPLEXITY_COMET" if "!INSTALL_PERPLEXITY_COMET!"=="0" set "INSTALL_PERPLEXITY_COMET=!VAL!"
         if /i "!KEY!"=="OPENCLAW_ONBOARD" if "!OPENCLAW_ONBOARD!"=="0" set "OPENCLAW_ONBOARD=!VAL!"
         if /i "!KEY!"=="OPENCLAW_INSTALL_METHOD" set "OPENCLAW_INSTALL_METHOD=!VAL!"
         if /i "!KEY!"=="OPENROUTER_CLI_PACKAGE" set "OPENROUTER_CLI_PACKAGE=!VAL!"
@@ -146,6 +185,23 @@ exit /b 0
 :: ---------------------------------------------------------------------------
 :run_optional_ai
 call "%SCRIPT_DIR%lib\optional-ai.cmd" install
+exit /b 0
+
+:: ---------------------------------------------------------------------------
+:run_optional_apps
+call "%SCRIPT_DIR%lib\optional-apps.cmd" install
+call :refresh_path
+exit /b 0
+
+:: ---------------------------------------------------------------------------
+:enable_all_ai_apps
+set "INSTALL_CURSOR=1"
+set "INSTALL_ANTIGRAVITY=1"
+set "INSTALL_ANTIGRAVITY_CLI=1"
+set "INSTALL_CLAUDE_DESKTOP=1"
+set "INSTALL_CLAUDE_CODE=1"
+set "INSTALL_PERPLEXITY=1"
+set "INSTALL_PERPLEXITY_COMET=1"
 exit /b 0
 
 :: ---------------------------------------------------------------------------
@@ -340,6 +396,7 @@ call :report_tool "gh" "gh --version"
 call :report_tool "code" "code --version"
 call :report_tool "openclaw" "openclaw --version"
 call :report_tool "openrouter" "openrouter --version"
+call :run_optional_apps_health
 
 if defined OPENROUTER_API_KEY (
     call :log "  openrouter-key: configured in this session (not shown)"
@@ -392,6 +449,11 @@ if not errorlevel 1 (
     )
 )
 call :log "  pip: not installed"
+exit /b 0
+
+:: ---------------------------------------------------------------------------
+:run_optional_apps_health
+call "%SCRIPT_DIR%lib\optional-apps.cmd" health
 exit /b 0
 
 :: ---------------------------------------------------------------------------
