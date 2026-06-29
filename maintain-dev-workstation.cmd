@@ -4,7 +4,7 @@ setlocal EnableExtensions EnableDelayedExpansion
 :: ============================================================================
 ::  Dev Workstation Maintenance — Windows 11
 ::  Runtime: cmd.exe + winget (built-in on Win11)
-::  Optional: node/npm (post-update global packages)
+::  Optional: node/npm, python/pip (post-update global packages)
 :: ============================================================================
 
 set "SCRIPT_DIR=%~dp0"
@@ -21,6 +21,7 @@ if /i "%~1"=="/?" goto :usage
 
 set "DRY_RUN=0"
 set "SKIP_NPM=0"
+set "SKIP_PIP=0"
 set "SKIP_WINGET=0"
 set "INSTALL_OPENCLAW=0"
 set "INSTALL_OPENROUTER=0"
@@ -33,6 +34,7 @@ set "OPENROUTER_API_KEY="
 if "%~1"=="" goto :args_done
 if /i "%~1"=="--dry-run" set "DRY_RUN=1"
 if /i "%~1"=="--skip-npm" set "SKIP_NPM=1"
+if /i "%~1"=="--skip-pip" set "SKIP_PIP=1"
 if /i "%~1"=="--skip-winget" set "SKIP_WINGET=1"
 if /i "%~1"=="--with-openclaw" set "INSTALL_OPENCLAW=1"
 if /i "%~1"=="--with-openrouter" set "INSTALL_OPENROUTER=1"
@@ -66,6 +68,7 @@ call :load_optional_config
 call :refresh_path
 
 if "%SKIP_WINGET%"=="0" call :run_winget_maintenance
+if "%SKIP_PIP%"=="0" call :run_pip_maintenance
 if "%SKIP_NPM%"=="0" call :run_npm_maintenance
 set "NEED_OPTIONAL=0"
 if "!INSTALL_OPENCLAW!"=="1" set "NEED_OPTIONAL=1"
@@ -88,6 +91,7 @@ echo.
 echo Options:
 echo   --dry-run                    Show planned actions without applying changes
 echo   --skip-npm                   Skip npm global update and npm doctor
+echo   --skip-pip                   Skip pip upgrade and pip check
 echo   --skip-winget                Skip winget package maintenance
 echo   --with-openclaw              Install OpenClaw (official install.ps1)
 echo   --openclaw-onboard           Full install with interactive onboarding
@@ -250,10 +254,82 @@ if errorlevel 1 (
 exit /b 0
 
 :: ---------------------------------------------------------------------------
+:run_pip_maintenance
+call :log ""
+call :log "[pip] Checking Python ecosystem (IDE assistants, MCP servers, CLI tools)..."
+
+set "USE_PY_LAUNCHER=0"
+where python >nul 2>&1
+if errorlevel 1 (
+    where py >nul 2>&1
+    if errorlevel 1 (
+        call :log "[skip] python not in PATH — restart terminal after winget install"
+        exit /b 0
+    )
+    set "USE_PY_LAUNCHER=1"
+)
+
+if "!USE_PY_LAUNCHER!"=="0" (
+    for /f "delims=" %%v in ('python --version 2^>nul') do call :log "[info] %%v"
+    for /f "delims=" %%v in ('python -m pip --version 2^>nul') do call :log "[info] %%v"
+) else (
+    for /f "delims=" %%v in ('py -3 --version 2^>nul') do call :log "[info] %%v (via py launcher)"
+    for /f "delims=" %%v in ('py -3 -m pip --version 2^>nul') do call :log "[info] %%v"
+)
+
+if "%DRY_RUN%"=="1" (
+    call :log "[dry-run] would run: python -m pip install --upgrade pip"
+    call :log "[dry-run] would run: upgrade outdated pip packages"
+    call :log "[dry-run] would run: python -m pip check"
+    exit /b 0
+)
+
+call :log "[pip] Upgrading pip..."
+call :pip_cmd -m pip install --upgrade pip >> "%LOG_FILE%" 2>&1
+
+call :log "[pip] Upgrading outdated packages..."
+if "!USE_PY_LAUNCHER!"=="0" (
+    for /f "skip=2 tokens=1" %%p in ('python -m pip list -o 2^>nul') do (
+        if not "%%p"=="" call :upgrade_pip_package "%%p"
+    )
+) else (
+    for /f "skip=2 tokens=1" %%p in ('py -3 -m pip list -o 2^>nul') do (
+        if not "%%p"=="" call :upgrade_pip_package "%%p"
+    )
+)
+
+call :log "[pip] Running pip check..."
+call :pip_cmd -m pip check >> "%LOG_FILE%" 2>&1
+if errorlevel 1 (
+    call :log "[warn] pip check reported issues — see log (may affect IDE Python extensions)"
+) else (
+    call :log "[ok] pip check passed"
+)
+exit /b 0
+
+:pip_cmd
+if "%USE_PY_LAUNCHER%"=="1" (
+    py -3 %*
+) else (
+    python %*
+)
+exit /b %errorlevel%
+
+:upgrade_pip_package
+set "PKG=%~1"
+if "%PKG%"=="" exit /b 0
+call :log "[pip] upgrading %PKG%..."
+call :pip_cmd -m pip install --upgrade "%PKG%" >> "%LOG_FILE%" 2>&1
+exit /b 0
+
+:: ---------------------------------------------------------------------------
 :run_health_checks
 call :log ""
 call :log "[health] Tool versions after maintenance:"
 
+call :report_tool "python" "python --version"
+call :report_tool "py" "py --version"
+call :report_pip_version
 call :report_tool "node" "node --version"
 call :report_tool "npm" "npm --version"
 call :report_tool "git" "git --version"
@@ -298,6 +374,24 @@ if errorlevel 1 (
     )
 )
 :report_done
+exit /b 0
+
+:report_pip_version
+where python >nul 2>&1
+if not errorlevel 1 (
+    for /f "delims=" %%o in ('python -m pip --version 2^>nul') do (
+        call :log "  pip: %%o"
+        exit /b 0
+    )
+)
+where py >nul 2>&1
+if not errorlevel 1 (
+    for /f "delims=" %%o in ('py -3 -m pip --version 2^>nul') do (
+        call :log "  pip: %%o (via py launcher)"
+        exit /b 0
+    )
+)
+call :log "  pip: not installed"
 exit /b 0
 
 :: ---------------------------------------------------------------------------

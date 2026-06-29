@@ -3,6 +3,8 @@
 # ACTION: upgrade | install
 #
 upgrade|OpenJS.NodeJS.LTS|Node.js LTS
+upgrade|Python.Python.3.13|Python 3.13
+upgrade|Python.Launcher|Python Launcher
 upgrade|Microsoft.PowerShell|PowerShell 7
 upgrade|GoLang.Go|Go
 upgrade|Microsoft.VisualStudioCode|Visual Studio Code

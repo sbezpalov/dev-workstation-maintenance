@@ -2,13 +2,17 @@
 
 Автоматическое обслуживание рабочего места разработчика на **Windows 11**.
 
-Скрипт обновляет инструменты через `winget`, поддерживает npm-экосистему, опционально устанавливает **OpenClaw** и настраивает **OpenRouter**. Работает на чистом **cmd.exe** — без обязательной зависимости от PowerShell.
+Скрипт обновляет инструменты через `winget`, поддерживает **Python/pip** и **npm**-экосистемы, опционально устанавливает **OpenClaw** и настраивает **OpenRouter**. Работает на чистом **cmd.exe** — без обязательной зависимости от PowerShell.
+
+Python нужен для IDE и AI-инструментов (Cursor, Antigravity, Claude Code, Perplexity, MCP-серверы, расширения VS Code).
 
 ## Возможности
 
 - Последовательное обновление пакетов через `winget` (без блокировки MSI)
+- Обновление Python 3.13 + Python Launcher через `winget`
+- Обновление pip и устаревших pip-пакетов + `pip check`
 - Обновление npm и глобальных npm-пакетов + `npm doctor`
-- Health-check версий: Node, npm, Git, Go, PHP, PowerShell, gh, VS Code
+- Health-check версий: Python, pip, py launcher, Node, npm, Git, Go, PHP, PowerShell, gh, VS Code
 - Опционально: OpenClaw (официальный `install.ps1` или npm)
 - Опционально: OpenRouter (API-ключ, env vars, CLI)
 - Журналы в `logs/`
@@ -18,6 +22,7 @@
 
 - Windows 11 (или Windows 10 с [App Installer](https://apps.microsoft.com/detail/9NBLGGH4NNS1))
 - `winget` в PATH
+- Для pip-блока: Python (ставится через `winget`, если ещё нет)
 - Для npm-блока: Node.js
 - Для OpenClaw installer: PowerShell 5+ (встроен в Windows)
 
@@ -44,6 +49,7 @@ maintain-dev-workstation.cmd [options]
 |------|----------|
 | `--dry-run` | Показать план без изменений |
 | `--skip-winget` | Пропустить обновления winget |
+| `--skip-pip` | Пропустить pip upgrade / check |
 | `--skip-npm` | Пропустить npm update / doctor |
 | `--with-openclaw` | Установить OpenClaw |
 | `--openclaw-onboard` | Полная установка OpenClaw с onboarding |
