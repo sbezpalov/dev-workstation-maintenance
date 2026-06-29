@@ -48,23 +48,23 @@ call :log ""
 call :log "[optional-apps] %APP_NAME% (%APP_ID%)"
 
 if "!DRY_RUN!"=="1" (
-    call :log "[dry-run] would install or upgrade via winget --id %APP_ID%"
+    call :log "[dry-run] would install or upgrade via winget --id "%APP_ID%""
     set /a APPS_SKIP+=1
     exit /b 0
 )
 
 set "APP_ACTION=install"
-winget list --id %APP_ID% --disable-interactivity >nul 2>&1
-if not errorlevel 1 set "APP_ACTION=upgrade"
+winget list --id "%APP_ID%" --disable-interactivity >nul 2>&1
+if !ERRORLEVEL! == 0 set "APP_ACTION=upgrade"
 
 call :log "[winget] %APP_ACTION% %APP_NAME%..."
 if /i "!APP_ACTION!"=="upgrade" (
-    winget upgrade --id %APP_ID% --accept-source-agreements --accept-package-agreements --disable-interactivity >> "!LOG_FILE!" 2>&1
+    winget upgrade --id "%APP_ID%" --accept-source-agreements --accept-package-agreements --disable-interactivity >> "!LOG_FILE!" 2>&1
 ) else (
-    winget install --id %APP_ID% --accept-source-agreements --accept-package-agreements --disable-interactivity >> "!LOG_FILE!" 2>&1
+    winget install --id "%APP_ID%" --accept-source-agreements --accept-package-agreements --disable-interactivity >> "!LOG_FILE!" 2>&1
 )
 
-if errorlevel 1 (
+if !ERRORLEVEL! neq 0 (
     call :log "[warn] %APP_NAME% — finished with warnings or no update available"
     set /a APPS_FAIL+=1
 ) else (
@@ -97,7 +97,7 @@ set "CLI_CMD=%~5"
 
 if defined CLI_TOOL if not "%CLI_TOOL%"=="" (
     where %CLI_TOOL% >nul 2>&1
-    if errorlevel 1 (
+    if !ERRORLEVEL! neq 0 (
         call :log "  %APP_NAME%: CLI not in PATH"
     ) else (
         for /f "delims=" %%o in ('%CLI_CMD% 2^>nul') do (
@@ -108,15 +108,27 @@ if defined CLI_TOOL if not "%CLI_TOOL%"=="" (
     goto :report_app_done
 )
 
-winget list --id %APP_ID% --disable-interactivity 2>nul | findstr /i /c:"%APP_ID%" >nul 2>&1
-if errorlevel 1 (
+winget list --id "%APP_ID%" --disable-interactivity 2>nul | findstr /i /c:"%APP_ID%" >nul 2>&1
+if !ERRORLEVEL! neq 0 (
     call :log "  %APP_NAME%: not installed"
 ) else (
-    for /f "tokens=2" %%v in ('winget list --id %APP_ID% --disable-interactivity 2^>nul ^| findstr /i /c:"%APP_ID%"') do (
-        call :log "  %APP_NAME%: installed (winget %%v)"
-        goto :report_app_done
+    set "APP_VER="
+    set "FOUND=0"
+    for /f "usebackq delims=" %%i in (`winget list --id "%APP_ID%" --disable-interactivity 2^>nul ^| findstr /i /c:"%APP_ID%"`) do (
+        set "FOUND=1"
+        set "LINE=%%i"
+        set "VERSION_PART=!LINE:*%APP_ID%=!"
+        for /f "tokens=1" %%v in ("!VERSION_PART!") do set "APP_VER=%%v"
     )
-    call :log "  %APP_NAME%: installed (winget)"
+    if "!FOUND!"=="1" (
+        if defined APP_VER (
+            call :log "  %APP_NAME%: installed (winget !APP_VER!)"
+        ) else (
+            call :log "  %APP_NAME%: installed (winget)"
+        )
+    ) else (
+        call :log "  %APP_NAME%: not installed"
+    )
 )
 :report_app_done
 exit /b 0

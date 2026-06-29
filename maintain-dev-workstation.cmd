@@ -11,8 +11,19 @@ set "SCRIPT_DIR=%~dp0"
 set "CONFIG_FILE=%SCRIPT_DIR%config\packages.list"
 set "OPTIONAL_FILE=%SCRIPT_DIR%config\optional.ini"
 set "LOG_DIR=%SCRIPT_DIR%logs"
-set "TIMESTAMP=%DATE:~-4%%DATE:~3,2%%DATE:~0,2%_%TIME:~0,2%%TIME:~3,2%%TIME:~6,2%"
-set "TIMESTAMP=%TIMESTAMP: =0%"
+set "TIMESTAMP="
+for /f "tokens=2 delims==" %%i in ('wmic os get localdatetime /value 2^>nul') do set "dt=%%i"
+if defined dt (
+    set "TIMESTAMP=!dt:~0,8!_!dt:~8,6!"
+) else (
+    for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format 'yyyyMMdd_HHmmss'" 2^>nul') do set "TIMESTAMP=%%i"
+)
+if not defined TIMESTAMP (
+    set "TIMESTAMP=%DATE:~-4%%DATE:~3,2%%DATE:~0,2%_%TIME:~0,2%%TIME:~3,2%%TIME:~6,2%"
+    set "TIMESTAMP=!TIMESTAMP: =0!"
+    set "TIMESTAMP=!TIMESTAMP:/=-!"
+    set "TIMESTAMP=!TIMESTAMP::=-!"
+)
 set "LOG_FILE=%LOG_DIR%\maintain_%TIMESTAMP%.log"
 
 if /i "%~1"=="-h" goto :usage
@@ -38,34 +49,86 @@ set "OPENROUTER_CLI_PACKAGE=@openrouter/cli"
 set "OPENROUTER_API_KEY="
 
 :parse_args
-if "%~1"=="" goto :args_done
-if /i "%~1"=="--dry-run" set "DRY_RUN=1"
-if /i "%~1"=="--skip-npm" set "SKIP_NPM=1"
-if /i "%~1"=="--skip-pip" set "SKIP_PIP=1"
-if /i "%~1"=="--skip-winget" set "SKIP_WINGET=1"
-if /i "%~1"=="--with-openclaw" set "INSTALL_OPENCLAW=1"
-if /i "%~1"=="--with-openrouter" set "INSTALL_OPENROUTER=1"
-if /i "%~1"=="--with-cursor" set "INSTALL_CURSOR=1"
-if /i "%~1"=="--with-antigravity" set "INSTALL_ANTIGRAVITY=1"
-if /i "%~1"=="--with-antigravity-cli" set "INSTALL_ANTIGRAVITY_CLI=1"
-if /i "%~1"=="--with-claude" set "INSTALL_CLAUDE_DESKTOP=1"
-if /i "%~1"=="--with-claude-code" set "INSTALL_CLAUDE_CODE=1"
-if /i "%~1"=="--with-perplexity" set "INSTALL_PERPLEXITY=1"
-if /i "%~1"=="--with-perplexity-comet" set "INSTALL_PERPLEXITY_COMET=1"
-if /i "%~1"=="--with-ai-apps" call :enable_all_ai_apps
-if /i "%~1"=="--openclaw-onboard" set "OPENCLAW_ONBOARD=1"
-if /i "%~1"=="--openclaw-npm" set "OPENCLAW_INSTALL_METHOD=npm"
-if /i "%~1"=="--openrouter-key" (
+set "ARG=%~1"
+if not defined ARG goto :args_done
+
+if /i "!ARG!"=="--dry-run" (
+    set "DRY_RUN=1"
+    goto :continue_args
+)
+if /i "!ARG!"=="--skip-npm" (
+    set "SKIP_NPM=1"
+    goto :continue_args
+)
+if /i "!ARG!"=="--skip-pip" (
+    set "SKIP_PIP=1"
+    goto :continue_args
+)
+if /i "!ARG!"=="--skip-winget" (
+    set "SKIP_WINGET=1"
+    goto :continue_args
+)
+if /i "!ARG!"=="--with-openclaw" (
+    set "INSTALL_OPENCLAW=1"
+    goto :continue_args
+)
+if /i "!ARG!"=="--with-openrouter" (
+    set "INSTALL_OPENROUTER=1"
+    goto :continue_args
+)
+if /i "!ARG!"=="--with-cursor" (
+    set "INSTALL_CURSOR=1"
+    goto :continue_args
+)
+if /i "!ARG!"=="--with-antigravity" (
+    set "INSTALL_ANTIGRAVITY=1"
+    goto :continue_args
+)
+if /i "!ARG!"=="--with-antigravity-cli" (
+    set "INSTALL_ANTIGRAVITY_CLI=1"
+    goto :continue_args
+)
+if /i "!ARG!"=="--with-claude" (
+    set "INSTALL_CLAUDE_DESKTOP=1"
+    goto :continue_args
+)
+if /i "!ARG!"=="--with-claude-code" (
+    set "INSTALL_CLAUDE_CODE=1"
+    goto :continue_args
+)
+if /i "!ARG!"=="--with-perplexity" (
+    set "INSTALL_PERPLEXITY=1"
+    goto :continue_args
+)
+if /i "!ARG!"=="--with-perplexity-comet" (
+    set "INSTALL_PERPLEXITY_COMET=1"
+    goto :continue_args
+)
+if /i "!ARG!"=="--with-ai-apps" (
+    call :enable_all_ai_apps
+    goto :continue_args
+)
+if /i "!ARG!"=="--openclaw-onboard" (
+    set "OPENCLAW_ONBOARD=1"
+    goto :continue_args
+)
+if /i "!ARG!"=="--openclaw-npm" (
+    set "OPENCLAW_INSTALL_METHOD=npm"
+    goto :continue_args
+)
+if /i "!ARG!"=="--openrouter-key" (
     shift
     set "OPENROUTER_API_KEY=%~1"
     set "INSTALL_OPENROUTER=1"
+    goto :continue_args
 )
-echo %~1| findstr /i /b /c:"--openrouter-key=" >nul 2>&1
-if not errorlevel 1 (
-    set "OPENROUTER_API_KEY=%~1"
-    set "OPENROUTER_API_KEY=!OPENROUTER_API_KEY:--openrouter-key=!"
+if /i "!ARG:~0,17!"=="--openrouter-key=" (
+    set "OPENROUTER_API_KEY=!ARG:~17!"
     set "INSTALL_OPENROUTER=1"
+    goto :continue_args
 )
+
+:continue_args
 shift
 goto :parse_args
 
@@ -141,7 +204,7 @@ exit /b 0
 call :log "[check] Verifying prerequisites..."
 
 where winget >nul 2>&1
-if errorlevel 1 (
+if !ERRORLEVEL! neq 0 (
     call :log "[ERROR] winget not found. Requires Windows 11 or App Installer."
     echo ERROR: winget is required. Install "App Installer" from Microsoft Store.
     exit /b 1
@@ -216,6 +279,7 @@ for /f "tokens=2*" %%a in ('reg query "HKCU\Environment" /v Path 2^>nul') do set
 
 if defined SYSPATH set "PATH=!SYSPATH!"
 if defined USERPATH set "PATH=!PATH!;!USERPATH!"
+call set "PATH=!PATH!"
 exit /b 0
 
 :: ---------------------------------------------------------------------------
@@ -247,22 +311,22 @@ call :log ""
 call :log "[winget] %PKG_NAME% (%PKG_ID%) — action: %ACTION%"
 
 if "%DRY_RUN%"=="1" (
-    call :log "[dry-run] would run: winget %ACTION% --id %PKG_ID%"
+    call :log "[dry-run] would run: winget %ACTION% --id "%PKG_ID%""
     set /a PKG_SKIP+=1
     exit /b 0
 )
 
 if /i "%ACTION%"=="upgrade" (
-    winget upgrade --id %PKG_ID% --accept-source-agreements --accept-package-agreements --disable-interactivity >> "%LOG_FILE%" 2>&1
+    winget upgrade --id "%PKG_ID%" --accept-source-agreements --accept-package-agreements --disable-interactivity >> "%LOG_FILE%" 2>&1
 ) else if /i "%ACTION%"=="install" (
-    winget install --id %PKG_ID% --accept-source-agreements --accept-package-agreements --disable-interactivity >> "%LOG_FILE%" 2>&1
+    winget install --id "%PKG_ID%" --accept-source-agreements --accept-package-agreements --disable-interactivity >> "%LOG_FILE%" 2>&1
 ) else (
-    call :log "[warn] Unknown action '%ACTION%' for %PKG_ID%, skipped"
+    call :log "[warn] Unknown action '%ACTION%' for "%PKG_ID%", skipped"
     set /a PKG_SKIP+=1
     exit /b 0
 )
 
-if errorlevel 1 (
+if !ERRORLEVEL! neq 0 (
     call :log "[warn] %PKG_NAME% — finished with warnings or no update available"
     set /a PKG_FAIL+=1
 ) else (
@@ -279,7 +343,7 @@ call :log ""
 call :log "[npm] Checking Node.js ecosystem..."
 
 where node >nul 2>&1
-if errorlevel 1 (
+if !ERRORLEVEL! neq 0 (
     call :log "[skip] node not in PATH"
     exit /b 0
 )
@@ -302,7 +366,7 @@ call npm update -g >> "%LOG_FILE%" 2>&1
 
 call :log "[npm] Running npm doctor..."
 call npm doctor >> "%LOG_FILE%" 2>&1
-if errorlevel 1 (
+if !ERRORLEVEL! neq 0 (
     call :log "[warn] npm doctor reported issues — see log"
 ) else (
     call :log "[ok] npm doctor passed"
@@ -316,9 +380,9 @@ call :log "[pip] Checking Python ecosystem (IDE assistants, MCP servers, CLI too
 
 set "USE_PY_LAUNCHER=0"
 where python >nul 2>&1
-if errorlevel 1 (
+if !ERRORLEVEL! neq 0 (
     where py >nul 2>&1
-    if errorlevel 1 (
+    if !ERRORLEVEL! neq 0 (
         call :log "[skip] python not in PATH — restart terminal after winget install"
         exit /b 0
     )
@@ -356,7 +420,7 @@ if "!USE_PY_LAUNCHER!"=="0" (
 
 call :log "[pip] Running pip check..."
 call :pip_cmd -m pip check >> "%LOG_FILE%" 2>&1
-if errorlevel 1 (
+if !ERRORLEVEL! neq 0 (
     call :log "[warn] pip check reported issues — see log (may affect IDE Python extensions)"
 ) else (
     call :log "[ok] pip check passed"
@@ -369,7 +433,7 @@ if "%USE_PY_LAUNCHER%"=="1" (
 ) else (
     python %*
 )
-exit /b %errorlevel%
+exit /b !ERRORLEVEL!
 
 :upgrade_pip_package
 set "PKG=%~1"
@@ -402,15 +466,15 @@ if defined OPENROUTER_API_KEY (
     call :log "  openrouter-key: configured in this session (not shown)"
 ) else (
     reg query "HKCU\Environment" /v OPENROUTER_API_KEY >nul 2>&1
-    if not errorlevel 1 (
+    if !ERRORLEVEL! == 0 (
         call :log "  openrouter-key: stored in user environment"
     )
 )
 
 where gh >nul 2>&1
-if not errorlevel 1 (
+if !ERRORLEVEL! == 0 (
     gh auth status >> "%LOG_FILE%" 2>&1
-    if errorlevel 1 (
+    if !ERRORLEVEL! neq 0 (
         call :log "[action] GitHub CLI not authenticated — run: gh auth login"
     ) else (
         call :log "[ok] GitHub CLI authenticated"
@@ -422,7 +486,7 @@ exit /b 0
 set "TOOL=%~1"
 set "CMD=%~2"
 where %TOOL% >nul 2>&1
-if errorlevel 1 (
+if !ERRORLEVEL! neq 0 (
     call :log "  %TOOL%: not installed"
 ) else (
     for /f "delims=" %%o in ('%CMD% 2^>nul') do (
@@ -435,14 +499,14 @@ exit /b 0
 
 :report_pip_version
 where python >nul 2>&1
-if not errorlevel 1 (
+if !ERRORLEVEL! == 0 (
     for /f "delims=" %%o in ('python -m pip --version 2^>nul') do (
         call :log "  pip: %%o"
         exit /b 0
     )
 )
 where py >nul 2>&1
-if not errorlevel 1 (
+if !ERRORLEVEL! == 0 (
     for /f "delims=" %%o in ('py -3 -m pip --version 2^>nul') do (
         call :log "  pip: %%o (via py launcher)"
         exit /b 0

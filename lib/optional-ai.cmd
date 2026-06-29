@@ -28,7 +28,7 @@ exit /b 0
 call :log "[openclaw] Installing via official script (install.ps1)..."
 
 where powershell >nul 2>&1
-if errorlevel 1 (
+if !ERRORLEVEL! neq 0 (
     call :log "[warn] powershell not found — falling back to npm"
     call :install_openclaw_npm
     exit /b 0
@@ -49,7 +49,7 @@ if "!OPENCLAW_ONBOARD!"=="1" (
     powershell -NoProfile -ExecutionPolicy Bypass -Command "& ([scriptblock]::Create((Invoke-RestMethod -UseBasicParsing 'https://openclaw.ai/install.ps1'))) -NoOnboard" >> "!LOG_FILE!" 2>&1
 )
 
-if errorlevel 1 (
+if !ERRORLEVEL! neq 0 (
     call :log "[warn] official installer failed — trying npm fallback"
     call :install_openclaw_npm
     exit /b 0
@@ -63,7 +63,7 @@ exit /b 0
 call :log "[openclaw] Installing via npm..."
 
 where node >nul 2>&1
-if errorlevel 1 (
+if !ERRORLEVEL! neq 0 (
     call :log "[skip] openclaw — node not in PATH"
     exit /b 0
 )
@@ -75,7 +75,7 @@ if "!DRY_RUN!"=="1" (
 )
 
 call npm.cmd install -g openclaw@latest >> "!LOG_FILE!" 2>&1
-if errorlevel 1 (
+if !ERRORLEVEL! neq 0 (
     call :log "[warn] openclaw npm install failed — see log"
     exit /b 0
 )
@@ -91,7 +91,7 @@ exit /b 0
 
 :verify_openclaw
 where openclaw >nul 2>&1
-if not errorlevel 1 (
+if !ERRORLEVEL! == 0 (
     for /f "delims=" %%v in ('openclaw --version 2^>nul') do call :log "[info] openclaw %%v"
     call openclaw doctor --non-interactive >> "!LOG_FILE!" 2>&1
 ) else (
@@ -119,10 +119,14 @@ if "!DRY_RUN!"=="1" (
     exit /b 0
 )
 
-call :set_user_env "OPENROUTER_API_KEY" "!OPENROUTER_API_KEY!"
-call :set_user_env "ANTHROPIC_BASE_URL" "https://openrouter.ai/api"
-call :set_user_env "ANTHROPIC_AUTH_TOKEN" "!OPENROUTER_API_KEY!"
-call :set_user_env "ANTHROPIC_API_KEY" ""
+set "TMP_VAL=!OPENROUTER_API_KEY!"
+call :set_user_env "OPENROUTER_API_KEY" "TMP_VAL"
+set "TMP_VAL=https://openrouter.ai/api"
+call :set_user_env "ANTHROPIC_BASE_URL" "TMP_VAL"
+set "TMP_VAL=!OPENROUTER_API_KEY!"
+call :set_user_env "ANTHROPIC_AUTH_TOKEN" "TMP_VAL"
+set "TMP_VAL="
+call :set_user_env "ANTHROPIC_API_KEY" "TMP_VAL"
 call :log "[ok] OpenRouter env vars saved to HKCU\Environment"
 
 set "OPENROUTER_API_KEY=!OPENROUTER_API_KEY!"
@@ -131,7 +135,7 @@ set "ANTHROPIC_AUTH_TOKEN=!OPENROUTER_API_KEY!"
 set "ANTHROPIC_API_KEY="
 
 where node >nul 2>&1
-if errorlevel 1 (
+if !ERRORLEVEL! neq 0 (
     call :log "[warn] node not in PATH — CLI not installed, env vars set"
     exit /b 0
 )
@@ -139,12 +143,12 @@ if errorlevel 1 (
 if not defined OPENROUTER_CLI_PACKAGE set "OPENROUTER_CLI_PACKAGE=@openrouter/cli"
 call :log "[openrouter] Installing CLI: !OPENROUTER_CLI_PACKAGE!"
 call npm.cmd install -g !OPENROUTER_CLI_PACKAGE! >> "!LOG_FILE!" 2>&1
-if errorlevel 1 (
+if !ERRORLEVEL! neq 0 (
     call :log "[warn] openrouter CLI install failed — env vars are set, see log"
 ) else (
     call :log "[ok] openrouter CLI installed"
     where openrouter >nul 2>&1
-    if not errorlevel 1 (
+    if !ERRORLEVEL! == 0 (
         for /f "delims=" %%v in ('openrouter --version 2^>nul') do call :log "[info] openrouter %%v"
     )
 )
@@ -168,9 +172,11 @@ exit /b 0
 :: ---------------------------------------------------------------------------
 :set_user_env
 set "ENV_NAME=%~1"
-set "ENV_VALUE=%~2"
+set "ENV_VAR_NAME=%~2"
+set "ENV_VALUE="
+if defined ENV_VAR_NAME set "ENV_VALUE=!%ENV_VAR_NAME%!"
 reg add "HKCU\Environment" /v "!ENV_NAME!" /t REG_SZ /d "!ENV_VALUE!" /f >> "!LOG_FILE!" 2>&1
-exit /b 0
+exit /b !ERRORLEVEL!
 
 :: ---------------------------------------------------------------------------
 :log
