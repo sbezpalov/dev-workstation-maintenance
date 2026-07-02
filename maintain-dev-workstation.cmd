@@ -1,5 +1,6 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
+chcp 65001 >nul 2>&1
 
 :: ============================================================================
 ::  Dev Workstation Maintenance — Windows 11
@@ -26,11 +27,7 @@ if not defined TIMESTAMP (
 )
 set "LOG_FILE=%LOG_DIR%\maintain_%TIMESTAMP%.log"
 
-if /i "%~1"=="-h" goto :usage
-if /i "%~1"=="--help" goto :usage
-if /i "%~1"=="/?" goto :usage
-
-set "DRY_RUN=0"
+set "SHOW_HELP=0"
 set "SKIP_NPM=0"
 set "SKIP_PIP=0"
 set "SKIP_WINGET=0"
@@ -47,11 +44,24 @@ set "OPENCLAW_ONBOARD=0"
 set "OPENCLAW_INSTALL_METHOD=installer"
 set "OPENROUTER_CLI_PACKAGE=@openrouter/cli"
 set "OPENROUTER_API_KEY="
+set "PROJECT_LANGUAGE="
 
 :parse_args
 set "ARG=%~1"
 if not defined ARG goto :args_done
 
+if /i "!ARG!"=="-h" (
+    set "SHOW_HELP=1"
+    goto :continue_args
+)
+if /i "!ARG!"=="--help" (
+    set "SHOW_HELP=1"
+    goto :continue_args
+)
+if /i "!ARG!"=="/?" (
+    set "SHOW_HELP=1"
+    goto :continue_args
+)
 if /i "!ARG!"=="--dry-run" (
     set "DRY_RUN=1"
     goto :continue_args
@@ -118,13 +128,22 @@ if /i "!ARG!"=="--openclaw-npm" (
 )
 if /i "!ARG!"=="--openrouter-key" (
     shift
-    set "OPENROUTER_API_KEY=%~1"
+    call set "OPENROUTER_API_KEY=%%~1"
     set "INSTALL_OPENROUTER=1"
     goto :continue_args
 )
 if /i "!ARG:~0,17!"=="--openrouter-key=" (
     set "OPENROUTER_API_KEY=!ARG:~17!"
     set "INSTALL_OPENROUTER=1"
+    goto :continue_args
+)
+if /i "!ARG!"=="--language" (
+    shift
+    call set "PROJECT_LANGUAGE=%%~1"
+    goto :continue_args
+)
+if /i "!ARG:~0,11!"=="--language=" (
+    set "PROJECT_LANGUAGE=!ARG:~11!"
     goto :continue_args
 )
 
@@ -135,10 +154,14 @@ goto :parse_args
 :args_done
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
 
+call "%SCRIPT_DIR%lib\i18n.cmd" init
+
+if "!SHOW_HELP!"=="1" goto :usage
+
 call :log "============================================================"
-call :log " Dev Workstation Maintenance started"
-call :log " Log: %LOG_FILE%"
-if "%DRY_RUN%"=="1" call :log " MODE: dry-run (no changes)"
+call :log "!I18N_maintain_started!"
+call :log "!I18N_maintain_log!"
+if "%DRY_RUN%"=="1" call :log "!I18N_maintain_dry_run!"
 call :log "============================================================"
 
 call :check_prerequisites || exit /b 1
@@ -165,48 +188,48 @@ call :run_health_checks
 call :print_summary
 
 call :log "============================================================"
-call :log " Maintenance finished"
+call :log "!I18N_maintain_finished!"
 call :log "============================================================"
 echo.
-echo Done. Log saved to: %LOG_FILE%
+echo !I18N_maintain_done!
 exit /b 0
 
 :usage
 echo.
-echo Usage: maintain-dev-workstation.cmd [options]
+echo !I18N_maintain_usage_title!
 echo.
-echo Options:
-echo   --dry-run                    Show planned actions without applying changes
-echo   --skip-npm                   Skip npm global update and npm doctor
-echo   --skip-pip                   Skip pip upgrade and pip check
-echo   --skip-winget                Skip winget package maintenance
-echo   --with-openclaw              Install OpenClaw (official install.ps1)
-echo   --openclaw-onboard           Full install with interactive onboarding
-echo   --openclaw-npm               Use npm instead of install.ps1
-echo   --with-openrouter            Configure OpenRouter + install CLI
-echo   --with-cursor                Install or upgrade Cursor IDE
-echo   --with-antigravity           Install or upgrade Antigravity IDE
-echo   --with-antigravity-cli       Install or upgrade Antigravity CLI
-echo   --with-claude                Install or upgrade Claude desktop app
-echo   --with-claude-code           Install or upgrade Claude Code CLI
-echo   --with-perplexity            Install or upgrade Perplexity app
-echo   --with-perplexity-comet      Install or upgrade Perplexity Comet browser
-echo   --with-ai-apps               Install all optional AI apps above
-echo   --openrouter-key KEY         OpenRouter API key (sk-or-v1-...)
-echo   --help                       Show this help
+echo !I18N_maintain_usage_opt_dry_run!
+echo !I18N_maintain_usage_opt_skip_npm!
+echo !I18N_maintain_usage_opt_skip_pip!
+echo !I18N_maintain_usage_opt_skip_winget!
+echo !I18N_maintain_usage_opt_openclaw!
+echo !I18N_maintain_usage_opt_openclaw_onboard!
+echo !I18N_maintain_usage_opt_openclaw_npm!
+echo !I18N_maintain_usage_opt_openrouter!
+echo !I18N_maintain_usage_opt_cursor!
+echo !I18N_maintain_usage_opt_antigravity!
+echo !I18N_maintain_usage_opt_antigravity_cli!
+echo !I18N_maintain_usage_opt_claude!
+echo !I18N_maintain_usage_opt_claude_code!
+echo !I18N_maintain_usage_opt_perplexity!
+echo !I18N_maintain_usage_opt_perplexity_comet!
+echo !I18N_maintain_usage_opt_ai_apps!
+echo !I18N_maintain_usage_opt_openrouter_key!
+echo !I18N_maintain_usage_opt_language!
+echo !I18N_maintain_usage_opt_help!
 echo.
-echo Config: config\optional.ini and config\secrets.env (see secrets.env.example)
+echo !I18N_maintain_usage_config_hint!
 echo.
 exit /b 0
 
 :: ---------------------------------------------------------------------------
 :check_prerequisites
-call :log "[check] Verifying prerequisites..."
+call :log "!I18N_maintain_check_prereq!"
 
 where winget >nul 2>&1
 if !ERRORLEVEL! neq 0 (
-    call :log "[ERROR] winget not found. Requires Windows 11 or App Installer."
-    echo ERROR: winget is required. Install "App Installer" from Microsoft Store.
+    call :log "!I18N_maintain_winget_missing!"
+    echo !I18N_maintain_winget_missing_echo!
     exit /b 1
 )
 
@@ -214,10 +237,10 @@ for /f "delims=" %%v in ('winget --version 2^>nul') do set "WINGET_VER=%%v"
 call :log "[ok] winget version: !WINGET_VER!"
 
 if not exist "%CONFIG_FILE%" (
-    call :log "[ERROR] Config not found: %CONFIG_FILE%"
+    call :log "!I18N_maintain_config_missing!"
     exit /b 1
 )
-call :log "[ok] Config: %CONFIG_FILE%"
+call :log "!I18N_maintain_config_ok!"
 exit /b 0
 
 :: ---------------------------------------------------------------------------
@@ -269,7 +292,7 @@ exit /b 0
 
 :: ---------------------------------------------------------------------------
 :refresh_path
-call :log "[path] Refreshing PATH from registry..."
+call :log "!I18N_maintain_path_refresh!"
 
 set "SYSPATH="
 set "USERPATH="
@@ -285,7 +308,7 @@ exit /b 0
 :: ---------------------------------------------------------------------------
 :run_winget_maintenance
 call :log ""
-call :log "[winget] Processing packages (sequential — avoids MSI lock)..."
+call :log "!I18N_maintain_winget_processing!"
 
 set "PKG_OK=0"
 set "PKG_FAIL=0"
@@ -308,10 +331,10 @@ if "%ACTION%"=="" exit /b 0
 if "%PKG_ID%"=="" exit /b 0
 
 call :log ""
-call :log "[winget] %PKG_NAME% (%PKG_ID%) — action: %ACTION%"
+call :log "!I18N_maintain_winget_package!"
 
 if "%DRY_RUN%"=="1" (
-    call :log "[dry-run] would run: winget %ACTION% --id "%PKG_ID%""
+    call :log "!I18N_maintain_winget_dry_run!"
     set /a PKG_SKIP+=1
     exit /b 0
 )
@@ -321,16 +344,16 @@ if /i "%ACTION%"=="upgrade" (
 ) else if /i "%ACTION%"=="install" (
     winget install --id "%PKG_ID%" --accept-source-agreements --accept-package-agreements --disable-interactivity >> "%LOG_FILE%" 2>&1
 ) else (
-    call :log "[warn] Unknown action '%ACTION%' for "%PKG_ID%", skipped"
+    call :log "!I18N_maintain_winget_unknown!"
     set /a PKG_SKIP+=1
     exit /b 0
 )
 
 if !ERRORLEVEL! neq 0 (
-    call :log "[warn] %PKG_NAME% — finished with warnings or no update available"
+    call :log "!I18N_maintain_winget_warn!"
     set /a PKG_FAIL+=1
 ) else (
-    call :log "[ok] %PKG_NAME% — success"
+    call :log "!I18N_maintain_winget_ok!"
     set /a PKG_OK+=1
 )
 
@@ -340,11 +363,11 @@ exit /b 0
 :: ---------------------------------------------------------------------------
 :run_npm_maintenance
 call :log ""
-call :log "[npm] Checking Node.js ecosystem..."
+call :log "!I18N_maintain_npm_check!"
 
 where node >nul 2>&1
 if !ERRORLEVEL! neq 0 (
-    call :log "[skip] node not in PATH"
+    call :log "!I18N_maintain_npm_skip!"
     exit /b 0
 )
 
@@ -352,38 +375,38 @@ for /f "delims=" %%v in ('node --version 2^>nul') do call :log "[info] node %%v"
 for /f "delims=" %%v in ('npm --version 2^>nul') do call :log "[info] npm %%v"
 
 if "%DRY_RUN%"=="1" (
-    call :log "[dry-run] would run: npm install -g npm@latest"
-    call :log "[dry-run] would run: npm update -g"
-    call :log "[dry-run] would run: npm doctor"
+    call :log "!I18N_maintain_npm_dry1!"
+    call :log "!I18N_maintain_npm_dry2!"
+    call :log "!I18N_maintain_npm_dry3!"
     exit /b 0
 )
 
-call :log "[npm] Updating npm itself..."
+call :log "!I18N_maintain_npm_update_self!"
 call npm install -g npm@latest >> "%LOG_FILE%" 2>&1
 
-call :log "[npm] Updating global packages..."
+call :log "!I18N_maintain_npm_update_global!"
 call npm update -g >> "%LOG_FILE%" 2>&1
 
-call :log "[npm] Running npm doctor..."
+call :log "!I18N_maintain_npm_doctor!"
 call npm doctor >> "%LOG_FILE%" 2>&1
 if !ERRORLEVEL! neq 0 (
-    call :log "[warn] npm doctor reported issues — see log"
+    call :log "!I18N_maintain_npm_doctor_warn!"
 ) else (
-    call :log "[ok] npm doctor passed"
+    call :log "!I18N_maintain_npm_doctor_ok!"
 )
 exit /b 0
 
 :: ---------------------------------------------------------------------------
 :run_pip_maintenance
 call :log ""
-call :log "[pip] Checking Python ecosystem (IDE assistants, MCP servers, CLI tools)..."
+call :log "!I18N_maintain_pip_check!"
 
 set "USE_PY_LAUNCHER=0"
 where python >nul 2>&1
 if !ERRORLEVEL! neq 0 (
     where py >nul 2>&1
     if !ERRORLEVEL! neq 0 (
-        call :log "[skip] python not in PATH — restart terminal after winget install"
+        call :log "!I18N_maintain_pip_skip!"
         exit /b 0
     )
     set "USE_PY_LAUNCHER=1"
@@ -393,21 +416,21 @@ if "!USE_PY_LAUNCHER!"=="0" (
     for /f "delims=" %%v in ('python --version 2^>nul') do call :log "[info] %%v"
     for /f "delims=" %%v in ('python -m pip --version 2^>nul') do call :log "[info] %%v"
 ) else (
-    for /f "delims=" %%v in ('py -3 --version 2^>nul') do call :log "[info] %%v (via py launcher)"
+    for /f "delims=" %%v in ('py -3 --version 2^>nul') do call :log "[info] %%v !I18N_maintain_pip_via_py!"
     for /f "delims=" %%v in ('py -3 -m pip --version 2^>nul') do call :log "[info] %%v"
 )
 
 if "%DRY_RUN%"=="1" (
-    call :log "[dry-run] would run: python -m pip install --upgrade pip"
-    call :log "[dry-run] would run: upgrade outdated pip packages"
-    call :log "[dry-run] would run: python -m pip check"
+    call :log "!I18N_maintain_pip_dry1!"
+    call :log "!I18N_maintain_pip_dry2!"
+    call :log "!I18N_maintain_pip_dry3!"
     exit /b 0
 )
 
-call :log "[pip] Upgrading pip..."
+call :log "!I18N_maintain_pip_upgrade!"
 call :pip_cmd -m pip install --upgrade pip >> "%LOG_FILE%" 2>&1
 
-call :log "[pip] Upgrading outdated packages..."
+call :log "!I18N_maintain_pip_outdated!"
 if "!USE_PY_LAUNCHER!"=="0" (
     for /f "skip=2 tokens=1" %%p in ('python -m pip list -o 2^>nul') do (
         if not "%%p"=="" call :upgrade_pip_package "%%p"
@@ -418,12 +441,12 @@ if "!USE_PY_LAUNCHER!"=="0" (
     )
 )
 
-call :log "[pip] Running pip check..."
+call :log "!I18N_maintain_pip_check_run!"
 call :pip_cmd -m pip check >> "%LOG_FILE%" 2>&1
 if !ERRORLEVEL! neq 0 (
-    call :log "[warn] pip check reported issues — see log (may affect IDE Python extensions)"
+    call :log "!I18N_maintain_pip_check_warn!"
 ) else (
-    call :log "[ok] pip check passed"
+    call :log "!I18N_maintain_pip_check_ok!"
 )
 exit /b 0
 
@@ -438,14 +461,14 @@ exit /b !ERRORLEVEL!
 :upgrade_pip_package
 set "PKG=%~1"
 if "%PKG%"=="" exit /b 0
-call :log "[pip] upgrading %PKG%..."
+call :log "!I18N_maintain_pip_upgrading!"
 call :pip_cmd -m pip install --upgrade "%PKG%" >> "%LOG_FILE%" 2>&1
 exit /b 0
 
 :: ---------------------------------------------------------------------------
 :run_health_checks
 call :log ""
-call :log "[health] Tool versions after maintenance:"
+call :log "!I18N_maintain_health_title!"
 
 call :report_tool "python" "python --version"
 call :report_tool "py" "py --version"
@@ -463,11 +486,11 @@ call :report_tool "openrouter" "openrouter --version"
 call :run_optional_apps_health
 
 if defined OPENROUTER_API_KEY (
-    call :log "  openrouter-key: configured in this session (not shown)"
+    call :log "!I18N_maintain_openrouter_key_session!"
 ) else (
     reg query "HKCU\Environment" /v OPENROUTER_API_KEY >nul 2>&1
     if !ERRORLEVEL! == 0 (
-        call :log "  openrouter-key: stored in user environment"
+        call :log "!I18N_maintain_openrouter_key_stored!"
     )
 )
 
@@ -475,9 +498,9 @@ where gh >nul 2>&1
 if !ERRORLEVEL! == 0 (
     gh auth status >> "%LOG_FILE%" 2>&1
     if !ERRORLEVEL! neq 0 (
-        call :log "[action] GitHub CLI not authenticated — run: gh auth login"
+        call :log "!I18N_maintain_gh_auth_action!"
     ) else (
-        call :log "[ok] GitHub CLI authenticated"
+        call :log "!I18N_maintain_gh_auth_ok!"
     )
 )
 exit /b 0
@@ -487,7 +510,7 @@ set "TOOL=%~1"
 set "CMD=%~2"
 where %TOOL% >nul 2>&1
 if !ERRORLEVEL! neq 0 (
-    call :log "  %TOOL%: not installed"
+    call :log "!I18N_maintain_tool_not_installed!"
 ) else (
     for /f "delims=" %%o in ('%CMD% 2^>nul') do (
         call :log "  %TOOL%: %%o"
@@ -508,11 +531,11 @@ if !ERRORLEVEL! == 0 (
 where py >nul 2>&1
 if !ERRORLEVEL! == 0 (
     for /f "delims=" %%o in ('py -3 -m pip --version 2^>nul') do (
-        call :log "  pip: %%o (via py launcher)"
+        call :log "  pip: %%o !I18N_maintain_pip_via_py!"
         exit /b 0
     )
 )
-call :log "  pip: not installed"
+call :log "!I18N_maintain_pip_not_installed!"
 exit /b 0
 
 :: ---------------------------------------------------------------------------
@@ -523,7 +546,7 @@ exit /b 0
 :: ---------------------------------------------------------------------------
 :print_summary
 call :log ""
-call :log "[summary] winget ok=!PKG_OK! warn/fail=!PKG_FAIL! skipped=!PKG_SKIP!"
+call :log "!I18N_maintain_summary_winget!"
 exit /b 0
 
 :: ---------------------------------------------------------------------------

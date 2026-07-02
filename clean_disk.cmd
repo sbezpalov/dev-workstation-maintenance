@@ -1,5 +1,14 @@
 @echo off
 chcp 65001 > nul
-powershell -NoProfile -ExecutionPolicy Bypass -Command "& { . '%~dp0lib\cleanup-i18n.ps1'; $p='%~dp0config\cleanup.ini'; Initialize-CleanupLanguage -Override (Get-CleanupLanguagePreference -IniFile $p); Write-Host (Get-CleanupMsg 'launcher.start'); Write-Host (Get-CleanupMsg 'launcher.options') }"
+set "SCRIPT_DIR=%~dp0"
+set "PROJECT_LANGUAGE="
+if /i "%~1"=="--language" (
+    set "PROJECT_LANGUAGE=%~2"
+    shift
+    shift
+)
+call "%SCRIPT_DIR%lib\i18n.cmd" init
+echo !I18N_launcher_start!
+echo !I18N_launcher_options!
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0clean_disk.ps1" %*
 pause

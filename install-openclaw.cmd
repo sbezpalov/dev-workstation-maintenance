@@ -1,18 +1,23 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions EnableDelayedExpansion
 
-:: Official OpenClaw installer — same as:
-::   powershell -c "irm https://openclaw.ai/install.ps1 | iex"
-::
-:: Options:
-::   install-openclaw.cmd           full install + onboarding
-::   install-openclaw.cmd --quick   install only, skip onboarding
-
+set "SCRIPT_DIR=%~dp0"
+set "PROJECT_LANGUAGE="
 set "NO_ONBOARD="
+
+if /i "%~1"=="--language" (
+    set "PROJECT_LANGUAGE=%~2"
+    shift
+    shift
+)
+if /i "%~1"=="--language=ru" set "PROJECT_LANGUAGE=ru" & shift
+if /i "%~1"=="--language=en" set "PROJECT_LANGUAGE=en" & shift
 if /i "%~1"=="--quick" set "NO_ONBOARD=-NoOnboard"
 if /i "%~1"=="--no-onboard" set "NO_ONBOARD=-NoOnboard"
 
-echo Running official OpenClaw installer...
+call "%SCRIPT_DIR%lib\i18n.cmd" init
+
+echo !I18N_openclaw_running!
 echo.
 
 if defined NO_ONBOARD (
@@ -23,13 +28,13 @@ if defined NO_ONBOARD (
         "irm https://openclaw.ai/install.ps1 | iex"
 )
 
-set "RC=%ERRORLEVEL%"
-if %RC% neq 0 (
+set "RC=!ERRORLEVEL!"
+if !RC! neq 0 (
     echo.
-    echo Install failed with exit code %RC%. See output above.
-    exit /b %RC%
+    echo !I18N_openclaw_failed!
+    exit /b !RC!
 )
 
 echo.
-echo OpenClaw installed. Verify: openclaw --version
+echo !I18N_openclaw_installed_verify!
 exit /b 0

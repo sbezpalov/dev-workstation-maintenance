@@ -2,11 +2,15 @@
 
 Автоматическое обслуживание рабочего места разработчика на **Windows 11**.
 
-Скрипт обновляет инструменты через `winget`, поддерживает **Python/pip** и **npm**-экосистемы, опционально устанавливает **OpenClaw** и настраивает **OpenRouter**. Работает на чистом **cmd.exe** — без обязательной зависимости от PowerShell.
+Скрипт обновляет инструменты через `winget`, поддерживает **Python/pip** и **npm**-экосистемы, опционально устанавливает **OpenClaw** и настраивает **OpenRouter**, очищает диск от кэшей и временных файлов. Основной сценарий обслуживания работает на **cmd.exe**; модуль очистки диска использует **PowerShell 5+** (встроен в Windows).
 
 Python нужен для IDE и AI-инструментов (Cursor, Antigravity, Claude Code, Perplexity, MCP-серверы, расширения VS Code).
 
+Интерфейс скриптов локализован: **русский** и **английский** (`ru` / `en`), с автоопределением по языку системы.
+
 ## Возможности
+
+### Обслуживание (`maintain-dev-workstation.cmd`)
 
 - Последовательное обновление пакетов через `winget` (без блокировки MSI)
 - Обновление Python 3.13 + Python Launcher через `winget`
@@ -19,13 +23,31 @@ Python нужен для IDE и AI-инструментов (Cursor, Antigravity
 - Журналы в `logs/`
 - Ежемесячный запуск через `schtasks`
 
+### Очистка диска (`clean_disk.cmd` / `clean_disk.ps1`)
+
+- Модульная очистка системного диска для **всех профилей** в `C:\Users\*`
+- Три уровня: `safe` → `developer` → `aggressive` (каждый включает предыдущий)
+- Кэши GPU: NVIDIA (DXCache, GLCache), AMD (DxCache, DxcCache, VkCache, GLCache, OglpCache), Windows D3DSCache
+- Кэши dev-инструментов: pip, npm, Go, Cursor, VS Code, WinGet, NuGet, Gradle, Cargo, pnpm, Yarn
+- Опционально: Windows Disk Cleanup (`cleanmgr`), очистка корзины
+- Режим `-DryRun`, журнал в `logs/`
+- Запрос прав администратора (UAC) для очистки всех профилей
+
+### Локализация (i18n)
+
+- Языки: `ru`, `en`, `auto` (русский при русской системе, иначе английский)
+- Настройка по умолчанию: `config/project.ini`
+- Переопределение из CLI: `--language ru|en` (CMD) или `-Language ru|en` (PowerShell)
+- Локализованы все пользовательские сообщения: обслуживание, OpenClaw, OpenRouter, optional apps, очистка диска, планировщик
+
 ## Требования
 
 - Windows 11 (или Windows 10 с [App Installer](https://apps.microsoft.com/detail/9NBLGGH4NNS1))
 - `winget` в PATH
 - Для pip-блока: Python (ставится через `winget`, если ещё нет)
 - Для npm-блока: Node.js
-- Для OpenClaw installer: PowerShell 5+ (встроен в Windows)
+- Для OpenClaw installer и очистки диска: PowerShell 5+ (встроен в Windows)
+- Для очистки всех профилей: права администратора
 
 ## Быстрый старт
 
@@ -38,9 +60,14 @@ maintain-dev-workstation.cmd --dry-run
 
 :: Полное обслуживание
 maintain-dev-workstation.cmd
+
+:: Очистка диска (dry-run, уровень из config\cleanup.ini)
+clean_disk.cmd -DryRun
 ```
 
 ## Использование
+
+### Обслуживание
 
 ```cmd
 maintain-dev-workstation.cmd [options]
@@ -65,13 +92,49 @@ maintain-dev-workstation.cmd [options]
 | `--openclaw-npm` | OpenClaw через npm вместо install.ps1 |
 | `--with-openrouter` | Настроить OpenRouter + CLI |
 | `--openrouter-key KEY` | API-ключ OpenRouter (`sk-or-v1-...`) |
+| `--language ru\|en` | Язык интерфейса (по умолчанию: `auto`) |
 | `--help` | Справка |
+
+### Очистка диска
+
+```cmd
+clean_disk.cmd [options]
+```
+
+| Параметр | Описание |
+|----------|----------|
+| `-DryRun` | Показать план без удаления |
+| `-Tier safe\|developer\|aggressive` | Уровень очистки (переопределяет `config\cleanup.ini`) |
+| `-Language ru\|en` | Язык интерфейса |
+| `--language ru\|en` | То же (для CMD-лаунчера) |
+
+Уровни очистки:
+
+| Уровень | Что удаляется |
+|---------|---------------|
+| `safe` | Temp, кэши шейдеров GPU (NVIDIA / AMD / Windows), `*.tmp` / `*.dmp` в корне профиля |
+| `developer` | + кэши pip, npm, Go, IDE (Cursor, VS Code), WinGet, Internet / Web cache |
+| `aggressive` | + NuGet, Gradle, Cargo, pnpm, Yarn (перекачка при следующем использовании) |
+
+### OpenClaw
+
+```cmd
+install-openclaw.cmd [--quick] [--language ru|en]
+```
+
+| Флаг | Описание |
+|------|----------|
+| `--quick` | Установка без интерактивного onboarding |
+| `--language ru\|en` | Язык сообщений |
 
 ### Примеры
 
 ```cmd
 :: Только dev-инструменты
 maintain-dev-workstation.cmd
+
+:: С русским интерфейсом
+maintain-dev-workstation.cmd --language ru --dry-run
 
 :: AI IDE и desktop-приложения (без OpenClaw)
 maintain-dev-workstation.cmd --with-cursor --with-claude-code --with-perplexity
@@ -85,9 +148,24 @@ maintain-dev-workstation.cmd --with-openclaw --with-openrouter --openrouter-key 
 :: Официальный установщик OpenClaw отдельно
 install-openclaw.cmd
 install-openclaw.cmd --quick
+
+:: Очистка диска: агрессивный уровень, dry-run
+clean_disk.cmd -DryRun -Tier aggressive
+
+:: Очистка с английским интерфейсом
+clean_disk.cmd --language en -DryRun
 ```
 
 ## Конфигурация
+
+### `config/project.ini`
+
+Общие настройки проекта:
+
+```ini
+# UI language: auto | ru | en
+LANGUAGE=auto
+```
 
 ### `config/packages.list`
 
@@ -95,6 +173,7 @@ install-openclaw.cmd --quick
 
 ```
 upgrade|OpenJS.NodeJS.LTS|Node.js LTS
+upgrade|Python.Python.3.13|Python 3.13
 upgrade|Git.Git|Git
 install|GitHub.cli|GitHub CLI
 ```
@@ -130,6 +209,40 @@ INSTALL_CLAUDE_CODE|Anthropic.ClaudeCode|Claude Code|claude|claude --version
 
 Флаги из `optional.ini` или CLI (`--with-cursor` и т.д.) включают установку / обновление соответствующей строки.
 
+### `config/cleanup.ini`
+
+Профиль очистки диска:
+
+```ini
+CLEANUP_TIER=developer
+LANGUAGE=auto          # fallback; основной язык — config\project.ini
+
+RUN_CLEANMGR=1
+CLEANMGR_SAGESET=65535
+CLEAR_RECYCLE_BIN=1
+CLEAR_LOOSE_FILES=1
+```
+
+Перед первым запуском `cleanmgr` выполните один раз вручную:
+
+```cmd
+cleanmgr /sageset:65535
+```
+
+### `config/cleanup.list`
+
+Цели очистки. Формат: `MIN_TIER|SCOPE|PATH|NAME_KEY`
+
+```
+safe|user|AppData\Local\Temp|user_temp
+safe|user|AppData\Local\NVIDIA\DXCache|nvidia_dxcache
+developer|user|AppData\Local\pip\cache|pip_cache
+aggressive|user|.nuget\packages|nuget_packages
+```
+
+- `SCOPE`: `user` (для каждого профиля в `C:\Users`) или `system` (один раз)
+- `NAME_KEY`: ключ локализации (префикс `target.` в `lib/i18n-data.ps1`)
+
 ### `config/secrets.env`
 
 Скопируйте `secrets.env.example` → `secrets.env` и добавьте ключи:
@@ -154,17 +267,30 @@ register-scheduled-task.cmd
 
 ```
 dev-workstation-maintenance/
-├── maintain-dev-workstation.cmd   # Главный скрипт
+├── maintain-dev-workstation.cmd   # Главный скрипт обслуживания
+├── clean_disk.cmd                 # Лаунчер очистки диска
+├── clean_disk.ps1                 # Оркестратор очистки (PowerShell)
 ├── install-openclaw.cmd           # Официальный установщик OpenClaw
 ├── register-scheduled-task.cmd    # Регистрация задачи в планировщике
 ├── config/
+│   ├── project.ini                # Общие настройки (язык)
 │   ├── packages.list              # Пакеты winget (базовый dev-стек)
-│   ├── optional-apps.list         # Опциональные AI IDE / desktop apps
 │   ├── optional.ini               # Флаги опциональных сервисов
+│   ├── optional-apps.list         # Опциональные AI IDE / desktop apps
+│   ├── cleanup.ini                # Профиль очистки диска
+│   ├── cleanup.list               # Цели очистки (tier / scope / path)
 │   └── secrets.env.example        # Шаблон секретов
 ├── lib/
+│   ├── i18n.ps1                   # Ядро локализации (PowerShell)
+│   ├── i18n-data.ps1              # Строки ru / en
+│   ├── i18n-export.ps1            # Экспорт I18N_* для CMD
+│   ├── i18n.cmd                   # Загрузчик локализации для CMD
 │   ├── optional-apps.cmd          # Cursor, Antigravity, Claude, Perplexity
-│   └── optional-ai.cmd            # OpenClaw / OpenRouter
+│   ├── optional-ai.cmd            # OpenClaw / OpenRouter
+│   ├── cleanup-common.ps1         # Общие функции очистки
+│   ├── cleanup-user.ps1           # Очистка профилей пользователей
+│   ├── cleanup-system.ps1         # cleanmgr, корзина, системные пути
+│   └── cleanup-i18n.ps1           # Обёртка совместимости → i18n.ps1
 └── logs/                          # Журналы (не в git)
 ```
 
@@ -185,7 +311,8 @@ dev-workstation-maintenance/
 - API-ключи рекомендуется хранить в `config/secrets.env` (шаблон в `secrets.env.example`) или безопасно передавать через флаг `--openrouter-key`.
 - Файл `secrets.env` добавлен в `.gitignore` и никогда не попадет в репозиторий.
 - Скрипт не логирует значения API-ключей в файлы журналов `logs/`.
-- UAC-запросы для инсталляторов MSI — стандартное поведение системы при установке/обновлении пакетов в Windows.
+- UAC-запросы для инсталляторов MSI и очистки всех профилей — стандартное поведение Windows.
+- Очистка диска в режиме `-DryRun` не удаляет файлы — только показывает план.
 
 ## Лицензия
 

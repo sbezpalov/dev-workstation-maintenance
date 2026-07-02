@@ -1,9 +1,6 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
-:: Optional AI desktop / IDE apps — winget install or upgrade
-:: Requires: winget, env vars set by caller (SCRIPT_DIR, LOG_FILE, DRY_RUN, INSTALL_* flags)
-
 set "OPTIONAL_APPS_FILE=%SCRIPT_DIR%config\optional-apps.list"
 
 if /i "%~1"=="install" goto :install
@@ -13,11 +10,11 @@ exit /b 1
 :: ---------------------------------------------------------------------------
 :install
 if not exist "%OPTIONAL_APPS_FILE%" (
-    call :log "[optional-apps] Config not found: %OPTIONAL_APPS_FILE%"
+    call :log "!I18N_optional_apps_config_missing!"
     exit /b 1
 )
 
-call :log "[optional-apps] AI desktop / IDE apps (winget)..."
+call :log "!I18N_optional_apps_header!"
 
 set "APPS_OK=0"
 set "APPS_FAIL=0"
@@ -29,8 +26,8 @@ for /f "usebackq tokens=1,2,3,4,5 delims=|" %%a in ("%OPTIONAL_APPS_FILE%") do (
         call :process_app "%%a" "%%b" "%%c" "%%d" "%%e"
     )
 )
-if !APPS_OK! gtr 0 call :log "[summary] optional-apps ok=!APPS_OK! warn/fail=!APPS_FAIL!"
-if !APPS_SKIP! gtr 0 call :log "[summary] optional-apps dry-run/skipped=!APPS_SKIP!"
+if !APPS_OK! gtr 0 call :log "!I18N_optional_apps_summary_ok!"
+if !APPS_SKIP! gtr 0 call :log "!I18N_optional_apps_summary_skip!"
 exit /b 0
 
 :process_app
@@ -45,10 +42,10 @@ call set "APP_ENABLED=%%%APP_FLAG%%%"
 if not "!APP_ENABLED!"=="1" exit /b 0
 
 call :log ""
-call :log "[optional-apps] %APP_NAME% (%APP_ID%)"
+call :log "!I18N_optional_apps_app_line!"
 
 if "!DRY_RUN!"=="1" (
-    call :log "[dry-run] would install or upgrade via winget --id "%APP_ID%""
+    call :log "!I18N_optional_apps_dry_run!"
     set /a APPS_SKIP+=1
     exit /b 0
 )
@@ -57,7 +54,7 @@ set "APP_ACTION=install"
 winget list --id "%APP_ID%" --disable-interactivity >nul 2>&1
 if !ERRORLEVEL! == 0 set "APP_ACTION=upgrade"
 
-call :log "[winget] %APP_ACTION% %APP_NAME%..."
+call :log "!I18N_optional_apps_winget_action!"
 if /i "!APP_ACTION!"=="upgrade" (
     winget upgrade --id "%APP_ID%" --accept-source-agreements --accept-package-agreements --disable-interactivity >> "!LOG_FILE!" 2>&1
 ) else (
@@ -65,10 +62,10 @@ if /i "!APP_ACTION!"=="upgrade" (
 )
 
 if !ERRORLEVEL! neq 0 (
-    call :log "[warn] %APP_NAME% — finished with warnings or no update available"
+    call :log "!I18N_optional_apps_warn!"
     set /a APPS_FAIL+=1
 ) else (
-    call :log "[ok] %APP_NAME% — success"
+    call :log "!I18N_optional_apps_ok!"
     set /a APPS_OK+=1
 )
 exit /b 0
@@ -78,7 +75,7 @@ exit /b 0
 if not exist "%OPTIONAL_APPS_FILE%" exit /b 0
 
 call :log ""
-call :log "[health] Optional AI apps:"
+call :log "!I18N_optional_apps_health_title!"
 
 for /f "usebackq tokens=1,2,3,4,5 delims=|" %%a in ("%OPTIONAL_APPS_FILE%") do (
     set "LINE=%%a"
@@ -98,7 +95,7 @@ set "CLI_CMD=%~5"
 if defined CLI_TOOL if not "%CLI_TOOL%"=="" (
     where %CLI_TOOL% >nul 2>&1
     if !ERRORLEVEL! neq 0 (
-        call :log "  %APP_NAME%: CLI not in PATH"
+        call :log "!I18N_optional_apps_cli_not_in_path!"
     ) else (
         for /f "delims=" %%o in ('%CLI_CMD% 2^>nul') do (
             call :log "  %APP_NAME%: %%o"
@@ -110,7 +107,7 @@ if defined CLI_TOOL if not "%CLI_TOOL%"=="" (
 
 winget list --id "%APP_ID%" --disable-interactivity 2>nul | findstr /i /c:"%APP_ID%" >nul 2>&1
 if !ERRORLEVEL! neq 0 (
-    call :log "  %APP_NAME%: not installed"
+    call :log "!I18N_optional_apps_not_installed!"
 ) else (
     set "APP_VER="
     set "FOUND=0"
@@ -122,12 +119,12 @@ if !ERRORLEVEL! neq 0 (
     )
     if "!FOUND!"=="1" (
         if defined APP_VER (
-            call :log "  %APP_NAME%: installed (winget !APP_VER!)"
+            call :log "!I18N_optional_apps_installed_version!"
         ) else (
-            call :log "  %APP_NAME%: installed (winget)"
+            call :log "!I18N_optional_apps_installed!"
         )
     ) else (
-        call :log "  %APP_NAME%: not installed"
+        call :log "!I18N_optional_apps_not_installed!"
     )
 )
 :report_app_done

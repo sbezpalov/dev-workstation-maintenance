@@ -16,11 +16,13 @@ $ErrorActionPreference = 'Continue'
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $LogDir = Join-Path -Path $ScriptDir -ChildPath 'logs'
 
-. (Join-Path -Path $ScriptDir -ChildPath 'lib\cleanup-i18n.ps1')
+. (Join-Path -Path $ScriptDir -ChildPath 'lib\i18n.ps1')
 
-$iniFile = Join-Path -Path $ScriptDir -ChildPath 'config\cleanup.ini'
-$langPreference = if ($Language) { $Language } else { Get-CleanupLanguagePreference -IniFile $iniFile }
-Initialize-CleanupLanguage -Override $langPreference
+$projectIni = Join-Path -Path $ScriptDir -ChildPath 'config\project.ini'
+$cleanupIni = Join-Path -Path $ScriptDir -ChildPath 'config\cleanup.ini'
+$langPreference = if ($Language) { $Language } else { Get-ProjectLanguagePreference -ProjectIni $projectIni -FallbackIni $cleanupIni }
+Initialize-ProjectLanguage -Override $langPreference
+$script:CleanupLang = $ProjectLang
 
 function Test-IsAdministrator {
     $principal = New-Object Security.Principal.WindowsPrincipal(
@@ -39,8 +41,8 @@ function Import-CleanupConfig {
         CLEAR_LOOSE_FILES   = $true
     }
 
-    if (Test-Path -LiteralPath $iniFile) {
-        Get-Content -LiteralPath $iniFile -Encoding UTF8 | ForEach-Object {
+    if (Test-Path -LiteralPath $cleanupIni) {
+        Get-Content -LiteralPath $cleanupIni -Encoding UTF8 | ForEach-Object {
             $line = $_.Trim()
             if (-not $line -or $line.StartsWith('#')) { return }
             $parts = $line -split '=', 2
