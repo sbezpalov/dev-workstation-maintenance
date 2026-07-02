@@ -35,12 +35,23 @@ $ExcludedUserFolders = @('Public', 'Default', 'Default User', 'All Users')
 
 $UserCacheRelativePaths = @(
     'AppData\Local\Temp',
-    'AppData\Local\NVIDIA\DXCache',
     'AppData\Local\pip\cache',
     'AppData\Local\npm-cache',
     'AppData\Local\go-build',
     'AppData\Local\CrashDumps'
 )
+
+# Кэш шейдеров GPU: Windows D3DSCache + NVIDIA + AMD/ATI (Local и LocalLow)
+# Источники: NVIDIA driver, AMD Adrenalin (DxCache/DxcCache/VkCache), Windows DirectX
+$GpuShaderCacheRelativePaths = @(
+    'AppData\Local\D3DSCache',
+    'AppData\Local\NVIDIA\DXCache',
+    'AppData\Local\NVIDIA\GLCache'
+)
+foreach ($amdCache in @('Dx9Cache', 'DxCache', 'DxcCache', 'VkCache', 'GLCache', 'OglpCache')) {
+    $GpuShaderCacheRelativePaths += "AppData\Local\AMD\$amdCache"
+    $GpuShaderCacheRelativePaths += "AppData\LocalLow\AMD\$amdCache"
+}
 
 $LooseFilePatterns = @('*.tmp', '*.dmp', '*.crash')
 
@@ -111,6 +122,11 @@ function Clear-UserCaches {
     Write-Host "--- Пользователь: $UserHome ---" -ForegroundColor Green
 
     foreach ($relativePath in $UserCacheRelativePaths) {
+        Clear-FolderSafely -Path (Join-Path -Path $UserHome -ChildPath $relativePath)
+    }
+
+    Write-Host "Кэш GPU: DirectX (D3DSCache), NVIDIA, AMD/ATI..." -ForegroundColor Cyan
+    foreach ($relativePath in $GpuShaderCacheRelativePaths) {
         Clear-FolderSafely -Path (Join-Path -Path $UserHome -ChildPath $relativePath)
     }
 
