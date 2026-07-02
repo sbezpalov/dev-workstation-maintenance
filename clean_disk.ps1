@@ -1,8 +1,26 @@
-﻿# Скрипт очистки диска C: от временных файлов и кэша
-# Обрабатывает все папки-профили в C:\Users + системные temp-папки.
-# При необходимости запрашивает права администратора через UAC.
+﻿# Disk cleanup orchestrator — modular cleanup for drive C:
+# Config: config/cleanup.ini, config/cleanup.list
+# i18n: ru-RU (system ru) | en-US (default)
+
+[CmdletBinding()]
+param(
+    [switch]$DryRun,
+    [ValidateSet('safe', 'developer', 'aggressive')]
+    [string]$Tier,
+    [ValidateSet('ru', 'en', 'ru-RU', 'en-US', 'auto', '')]
+    [string]$Language
+)
 
 $ErrorActionPreference = 'Continue'
+
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$LogDir = Join-Path -Path $ScriptDir -ChildPath 'logs'
+
+. (Join-Path -Path $ScriptDir -ChildPath 'lib\cleanup-i18n.ps1')
+
+$iniFile = Join-Path -Path $ScriptDir -ChildPath 'config\cleanup.ini'
+$langPreference = if ($Language) { $Language } else { Get-CleanupLanguagePreference -IniFile $iniFile }
+Initialize-CleanupLanguage -Override $langPreference
 
 function Test-IsAdministrator {
     $principal = New-Object Security.Principal.WindowsPrincipal(
@@ -11,156 +29,126 @@ function Test-IsAdministrator {
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
+function Import-CleanupConfig {
+    $settings = @{
+        CLEANUP_TIER        = 'developer'
+        LANGUAGE            = 'auto'
+        RUN_CLEANMGR        = $true
+        CLEANMGR_SAGESET    = 65535
+        CLEAR_RECYCLE_BIN   = $true
+        CLEAR_LOOSE_FILES   = $true
+    }
+
+    if (Test-Path -LiteralPath $iniFile) {
+        Get-Content -LiteralPath $iniFile -Encoding UTF8 | ForEach-Object {
+            $line = $_.Trim()
+            if (-not $line -or $line.StartsWith('#')) { return }
+            $parts = $line -split '=', 2
+            if ($parts.Count -lt 2) { return }
+            $settings[$parts[0].Trim()] = $parts[1].Trim()
+        }
+    }
+
+    if ($Tier) {
+        $script:CleanupTier = $Tier.ToLowerInvariant()
+    } else {
+        $script:CleanupTier = ($settings['CLEANUP_TIER']).ToString().ToLowerInvariant()
+    }
+
+    if ($CleanupTier -notin @('safe', 'developer', 'aggressive')) {
+        $script:CleanupTier = 'developer'
+    }
+
+    $script:RunCleanmgr = ($settings['RUN_CLEANMGR'] -eq '1')
+    $script:CleanmgrSageset = [int]$settings['CLEANMGR_SAGESET']
+    $script:ClearRecycleBin = ($settings['CLEAR_RECYCLE_BIN'] -eq '1')
+    $script:ClearLooseFiles = ($settings['CLEAR_LOOSE_FILES'] -eq '1')
+}
+
+function Write-CleanupSummary {
+    param(
+        [long]$InitialFreeBytes,
+        [long]$FinalFreeBytes
+    )
+
+    $diskDelta = $FinalFreeBytes - $InitialFreeBytes
+    $drySuffix = if ($DryRun) { L 'summary.dry_run_suffix' } else { '' }
+
+    Write-CleanupLog ''
+    Write-CleanupLog '======================================'
+    Write-CleanupLog (L 'summary.done')
+    Write-CleanupLog (L 'summary.tier' $CleanupTier $drySuffix)
+
+    if ($CleanupStats.Count -gt 0) {
+        Write-CleanupLog ''
+        Write-CleanupLog (L 'summary.by_category')
+        $CleanupStats |
+            Group-Object Category |
+            ForEach-Object {
+                $sum = ($_.Group | Measure-Object -Property FreedMB -Sum).Sum
+                $catLabel = L "category.$($_.Name)"
+                Write-CleanupLog (L 'summary.category_line' $catLabel ([math]::Round($sum, 2)))
+            }
+    }
+
+    Write-CleanupLog ''
+    Write-CleanupLog (L 'summary.tracked' (Format-SizeMB $CleanupFreedBytes))
+    Write-CleanupLog (L 'summary.disk_delta' (Format-SizeMB $diskDelta) ([math]::Round($diskDelta / 1GB, 2)))
+    Write-CleanupLog (L 'summary.free_on' $env:SystemDrive ([math]::Round($FinalFreeBytes / 1GB, 2)))
+    if ($LogFile) {
+        Write-CleanupLog (L 'summary.log' $LogFile)
+    }
+}
+
 if (-not (Test-IsAdministrator)) {
-    Write-Host "Для очистки всех профилей нужны права администратора." -ForegroundColor Yellow
-    Write-Host "Запрос подтверждения UAC..." -ForegroundColor Yellow
+    Write-Host (L 'uac.need_admin') -ForegroundColor Yellow
+    Write-Host (L 'uac.prompt') -ForegroundColor Yellow
 
     $elevateArgs = @(
         '-NoProfile',
         '-ExecutionPolicy', 'Bypass',
         '-File', $PSCommandPath
     )
+    if ($DryRun) { $elevateArgs += '-DryRun' }
+    if ($Tier) { $elevateArgs += @('-Tier', $Tier) }
+    $elevateArgs += @('-Language', $CleanupLang)
 
     try {
         Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList $elevateArgs -Wait
     } catch {
-        Write-Host "Запуск от имени администратора отменён." -ForegroundColor Red
+        Write-Host (L 'uac.cancelled') -ForegroundColor Red
         exit 1
     }
     exit 0
 }
 
-$UsersRoot = Join-Path -Path $env:SystemDrive -ChildPath 'Users'
-$ExcludedUserFolders = @('Public', 'Default', 'Default User', 'All Users')
-
-$UserCacheRelativePaths = @(
-    'AppData\Local\Temp',
-    'AppData\Local\pip\cache',
-    'AppData\Local\npm-cache',
-    'AppData\Local\go-build',
-    'AppData\Local\CrashDumps'
-)
-
-# Кэш шейдеров GPU: Windows D3DSCache + NVIDIA + AMD/ATI (Local и LocalLow)
-# Источники: NVIDIA driver, AMD Adrenalin (DxCache/DxcCache/VkCache), Windows DirectX
-$GpuShaderCacheRelativePaths = @(
-    'AppData\Local\D3DSCache',
-    'AppData\Local\NVIDIA\DXCache',
-    'AppData\Local\NVIDIA\GLCache'
-)
-foreach ($amdCache in @('Dx9Cache', 'DxCache', 'DxcCache', 'VkCache', 'GLCache', 'OglpCache')) {
-    $GpuShaderCacheRelativePaths += "AppData\Local\AMD\$amdCache"
-    $GpuShaderCacheRelativePaths += "AppData\LocalLow\AMD\$amdCache"
+if (-not (Test-Path -LiteralPath $LogDir)) {
+    New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
 }
 
-$LooseFilePatterns = @('*.tmp', '*.dmp', '*.crash')
+$timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+$script:LogFile = Join-Path -Path $LogDir -ChildPath "clean_disk_$timestamp.log"
+$script:DryRun = [bool]$DryRun
+$script:CleanupStats = @()
+$script:CleanupFreedBytes = 0
 
-function Clear-FolderSafely {
-    param([string]$Path)
+Import-CleanupConfig
 
-    if (-not (Test-Path -LiteralPath $Path -ErrorAction SilentlyContinue)) {
-        Write-Host "Папка не найдена (пропуск): $Path" -ForegroundColor Gray
-        return
-    }
+. (Join-Path -Path $ScriptDir -ChildPath 'lib\cleanup-common.ps1')
+. (Join-Path -Path $ScriptDir -ChildPath 'lib\cleanup-user.ps1')
+. (Join-Path -Path $ScriptDir -ChildPath 'lib\cleanup-system.ps1')
 
-    Write-Host "Очистка папки: $Path" -ForegroundColor Cyan
-    Get-ChildItem -LiteralPath $Path -Force -ErrorAction SilentlyContinue | ForEach-Object {
-        try {
-            Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction Stop
-        } catch {
-            # Файл занят другой программой - пропускаем
-        }
-    }
-}
+$driveName = $env:SystemDrive.TrimEnd(':')
+$initialFree = (Get-PSDrive -Name $driveName).Free
 
-function Test-UserProfileDirectory {
-    param([string]$UserHome)
+Write-CleanupLog '============================================================'
+Write-CleanupLog (L 'start.header' $env:SystemDrive)
+if ($DryRun) { Write-CleanupLog (L 'start.dry_run') }
+Write-CleanupLog (L 'start.tier' $CleanupTier)
+Write-CleanupLog '============================================================'
 
-    $appDataPath = Join-Path -Path $UserHome -ChildPath 'AppData'
-    $ntuserPath = Join-Path -Path $UserHome -ChildPath 'ntuser.dat'
+Invoke-UserCleanup
+Invoke-SystemCleanup
 
-    return (Test-Path -LiteralPath $appDataPath -ErrorAction SilentlyContinue) -or
-           (Test-Path -LiteralPath $ntuserPath -ErrorAction SilentlyContinue)
-}
-
-function Get-UserProfilePaths {
-    $profiles = @{}
-
-    if (-not (Test-Path -LiteralPath $UsersRoot -ErrorAction SilentlyContinue)) {
-        return @()
-    }
-
-    # Все папки в C:\Users (WMI часто видит только активный профиль)
-    Get-ChildItem -LiteralPath $UsersRoot -Directory -Force -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -notin $ExcludedUserFolders } |
-        ForEach-Object {
-            if (Test-UserProfileDirectory -UserHome $_.FullName) {
-                $profiles[$_.FullName.ToLowerInvariant()] = $_.FullName
-            }
-        }
-
-    # Дополнительно — профили из WMI, если папка ещё не в списке
-    Get-CimInstance -ClassName Win32_UserProfile -ErrorAction SilentlyContinue |
-        Where-Object {
-            -not $_.Special -and
-            $_.LocalPath -and
-            $_.LocalPath.StartsWith($UsersRoot, [System.StringComparison]::OrdinalIgnoreCase)
-        } |
-        ForEach-Object {
-            if (Test-Path -LiteralPath $_.LocalPath -ErrorAction SilentlyContinue) {
-                $profiles[$_.LocalPath.ToLowerInvariant()] = $_.LocalPath
-            }
-        }
-
-    return $profiles.Values | Sort-Object
-}
-
-function Clear-UserCaches {
-    param([string]$UserHome)
-
-    Write-Host ""
-    Write-Host "--- Пользователь: $UserHome ---" -ForegroundColor Green
-
-    foreach ($relativePath in $UserCacheRelativePaths) {
-        Clear-FolderSafely -Path (Join-Path -Path $UserHome -ChildPath $relativePath)
-    }
-
-    Write-Host "Кэш GPU: DirectX (D3DSCache), NVIDIA, AMD/ATI..." -ForegroundColor Cyan
-    foreach ($relativePath in $GpuShaderCacheRelativePaths) {
-        Clear-FolderSafely -Path (Join-Path -Path $UserHome -ChildPath $relativePath)
-    }
-
-    Write-Host "Поиск и удаление *.tmp, *.dmp, *.crash в корне профиля..." -ForegroundColor Cyan
-    foreach ($pattern in $LooseFilePatterns) {
-        Get-ChildItem -LiteralPath $UserHome -Filter $pattern -File -Force -ErrorAction SilentlyContinue |
-            Remove-Item -Force -ErrorAction SilentlyContinue
-    }
-}
-
-$initialSpace = (Get-PSDrive C).Free
-Write-Host "=== Начало очистки диска C: (администратор) ===" -ForegroundColor Green
-
-$userProfiles = @(Get-UserProfilePaths)
-if ($userProfiles.Count -eq 0) {
-    Write-Host "Профили пользователей в $UsersRoot не найдены." -ForegroundColor Yellow
-} else {
-    Write-Host "Найдено профилей: $($userProfiles.Count)" -ForegroundColor Gray
-    foreach ($userHome in $userProfiles) {
-        Clear-UserCaches -UserHome $userHome
-    }
-}
-
-Write-Host ""
-Write-Host "--- Системные папки ---" -ForegroundColor Green
-Clear-FolderSafely -Path (Join-Path -Path $env:SystemRoot -ChildPath 'Temp')
-
-$finalSpace = (Get-PSDrive C).Free
-$freedSpaceMB = [math]::Round(($finalSpace - $initialSpace) / 1MB, 2)
-$freedSpaceGB = [math]::Round(($finalSpace - $initialSpace) / 1GB, 2)
-$availableGB = [math]::Round($finalSpace / 1GB, 2)
-
-Write-Host ""
-Write-Host "======================================" -ForegroundColor Green
-Write-Host "Очистка завершена!" -ForegroundColor Green
-Write-Host "Освобождено: $freedSpaceMB МБ ($freedSpaceGB ГБ)" -ForegroundColor Yellow
-Write-Host "Доступно на диске C: $availableGB ГБ" -ForegroundColor Yellow
+$finalFree = (Get-PSDrive -Name $driveName).Free
+Write-CleanupSummary -InitialFreeBytes $initialFree -FinalFreeBytes $finalFree

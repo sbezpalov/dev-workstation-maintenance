@@ -1,0 +1,48 @@
+# Disk cleanup targets
+# Format: MIN_TIER|SCOPE|PATH|NAME_KEY
+# SCOPE: user (per profile in C:\Users) | system (once)
+# NAME_KEY: localization key (see lib/cleanup-i18n.ps1, prefix target.)
+#
+# --- safe: temp files and GPU shader caches ---
+safe|user|AppData\Local\Temp|user_temp
+safe|user|AppData\Local\D3DSCache|d3d_shader_cache
+safe|user|AppData\Local\NVIDIA\DXCache|nvidia_dxcache
+safe|user|AppData\Local\NVIDIA\GLCache|nvidia_glcache
+safe|user|AppData\Local\AMD\Dx9Cache|amd_dx9cache
+safe|user|AppData\Local\AMD\DxCache|amd_dxcache
+safe|user|AppData\Local\AMD\DxcCache|amd_dxccache
+safe|user|AppData\Local\AMD\VkCache|amd_vkcache
+safe|user|AppData\Local\AMD\GLCache|amd_glcache
+safe|user|AppData\Local\AMD\OglpCache|amd_oglpcache
+safe|user|AppData\LocalLow\AMD\Dx9Cache|amd_dx9cache_ll
+safe|user|AppData\LocalLow\AMD\DxCache|amd_dxcache_ll
+safe|user|AppData\LocalLow\AMD\DxcCache|amd_dxccache_ll
+safe|user|AppData\LocalLow\AMD\VkCache|amd_vkcache_ll
+safe|user|AppData\LocalLow\AMD\GLCache|amd_glcache_ll
+safe|user|AppData\LocalLow\AMD\OglpCache|amd_oglpcache_ll
+safe|system|%SystemRoot%\Temp|windows_temp
+#
+# --- developer: dev tools and IDE caches ---
+developer|user|AppData\Local\pip\cache|pip_cache
+developer|user|AppData\Local\npm-cache|npm_cache
+developer|user|AppData\Local\go-build|go_build
+developer|user|AppData\Local\CrashDumps|crash_dumps
+developer|user|AppData\Local\Microsoft\Windows\INetCache|inet_cache
+developer|user|AppData\Local\Microsoft\Windows\WebCache|web_cache
+developer|user|AppData\Local\Intel\ShaderCache|intel_shader_cache
+developer|user|AppData\Roaming\Cursor\Cache|cursor_cache
+developer|user|AppData\Roaming\Cursor\CachedData|cursor_cached_data
+developer|user|AppData\Roaming\Cursor\Code Cache|cursor_code_cache
+developer|user|AppData\Roaming\Code\Cache|vscode_cache
+developer|user|AppData\Roaming\Code\CachedData|vscode_cached_data
+developer|user|AppData\Roaming\Code\Code Cache|vscode_code_cache
+developer|user|AppData\Local\Packages\Microsoft.DesktopAppInstaller_*\TempState\WinGet|winget_installers
+developer|user|AppData\Local\Microsoft\WinGet\Cache|winget_cache
+#
+# --- aggressive: large caches (re-download on next use) ---
+aggressive|user|.nuget\packages|nuget_packages
+aggressive|user|.gradle\caches|gradle_caches
+aggressive|user|.cargo\registry|cargo_registry
+aggressive|user|.cargo\git|cargo_git
+aggressive|user|AppData\Local\pnpm\store|pnpm_store
+aggressive|user|AppData\Local\Yarn\Cache|yarn_cache
