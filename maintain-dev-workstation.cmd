@@ -11,7 +11,10 @@ chcp 65001 >nul 2>&1
 set "SCRIPT_DIR=%~dp0"
 set "CONFIG_FILE=%SCRIPT_DIR%config\packages.list"
 set "OPTIONAL_FILE=%SCRIPT_DIR%config\optional.ini"
+set "PROJECT_FILE=%SCRIPT_DIR%config\project.ini"
 set "LOG_DIR=%SCRIPT_DIR%logs"
+set "WINGET_SCOPE=machine"
+set "WINGET_SCOPE_ARGS="
 set "TIMESTAMP="
 for /f "tokens=2 delims==" %%i in ('wmic os get localdatetime /value 2^>nul') do set "dt=%%i"
 if defined dt (
@@ -146,6 +149,17 @@ if /i "!ARG:~0,11!"=="--language=" (
     set "PROJECT_LANGUAGE=!ARG:~11!"
     goto :continue_args
 )
+if /i "!ARG!"=="--scope" (
+    shift
+    call set "WINGET_SCOPE=%%~1"
+    set "WINGET_SCOPE_CLI=1"
+    goto :continue_args
+)
+if /i "!ARG:~0,8!"=="--scope=" (
+    set "WINGET_SCOPE=!ARG:~8!"
+    set "WINGET_SCOPE_CLI=1"
+    goto :continue_args
+)
 
 :continue_args
 shift
@@ -165,7 +179,9 @@ if "%DRY_RUN%"=="1" call :log "!I18N_maintain_dry_run!"
 call :log "============================================================"
 
 call :check_prerequisites || exit /b 1
+call :load_project_config
 call :load_optional_config
+call :init_winget_scope
 call :refresh_path
 
 if "%SKIP_WINGET%"=="0" call :run_winget_maintenance
@@ -190,8 +206,8 @@ call :print_summary
 call :log "============================================================"
 call :log "!I18N_maintain_finished!"
 call :log "============================================================"
-echo.
-echo !I18N_maintain_done!
+call :log ""
+call :log "!I18N_maintain_done!"
 exit /b 0
 
 :usage
@@ -216,6 +232,7 @@ echo !I18N_maintain_usage_opt_perplexity_comet!
 echo !I18N_maintain_usage_opt_ai_apps!
 echo !I18N_maintain_usage_opt_openrouter_key!
 echo !I18N_maintain_usage_opt_language!
+echo !I18N_maintain_usage_opt_scope!
 echo !I18N_maintain_usage_opt_help!
 echo.
 echo !I18N_maintain_usage_config_hint!
@@ -241,6 +258,34 @@ if not exist "%CONFIG_FILE%" (
     exit /b 1
 )
 call :log "!I18N_maintain_config_ok!"
+exit /b 0
+
+:: ---------------------------------------------------------------------------
+:load_project_config
+if not exist "%PROJECT_FILE%" exit /b 0
+
+for /f "usebackq eol=# tokens=1,* delims==" %%a in ("%PROJECT_FILE%") do (
+    set "KEY=%%a"
+    set "VAL=%%b"
+    if defined KEY (
+        if defined VAL set "VAL=!VAL: =!"
+        if /i "!KEY!"=="WINGET_SCOPE" if not "!WINGET_SCOPE_CLI!"=="1" set "WINGET_SCOPE=!VAL!"
+    )
+)
+exit /b 0
+
+:: ---------------------------------------------------------------------------
+:init_winget_scope
+set "WINGET_SCOPE_ARGS="
+if /i "!WINGET_SCOPE!"=="machine" set "WINGET_SCOPE_ARGS=--scope machine"
+if /i "!WINGET_SCOPE!"=="user" set "WINGET_SCOPE_ARGS=--scope user"
+if /i "!WINGET_SCOPE!"=="auto" set "WINGET_SCOPE=auto"
+if "!WINGET_SCOPE!"=="" set "WINGET_SCOPE=machine" & set "WINGET_SCOPE_ARGS=--scope machine"
+call :log "!I18N_maintain_winget_scope!"
+if /i "!WINGET_SCOPE!"=="machine" (
+    net session >nul 2>&1
+    if !ERRORLEVEL! neq 0 call :log "!I18N_maintain_winget_scope_admin!"
+)
 exit /b 0
 
 :: ---------------------------------------------------------------------------
@@ -354,9 +399,9 @@ if "%DRY_RUN%"=="1" (
 )
 
 if /i "%ACTION%"=="upgrade" (
-    winget upgrade --id "%PKG_ID%" --accept-source-agreements --accept-package-agreements --disable-interactivity >> "%LOG_FILE%" 2>&1
+    call :winget_do upgrade "%PKG_ID%"
 ) else if /i "%ACTION%"=="install" (
-    winget install --id "%PKG_ID%" --accept-source-agreements --accept-package-agreements --disable-interactivity >> "%LOG_FILE%" 2>&1
+    call :winget_do install "%PKG_ID%"
 ) else (
     call :log "!I18N_maintain_winget_unknown!"
     set /a PKG_SKIP+=1
@@ -373,6 +418,25 @@ if !ERRORLEVEL! neq 0 (
 
 call :refresh_path
 exit /b 0
+
+:: winget install/upgrade with preferred scope; fallback without --scope if needed.
+:winget_do
+set "WG_ACTION=%~1"
+set "WG_ID=%~2"
+if /i "%WG_ACTION%"=="upgrade" (
+    winget upgrade --id "%WG_ID%" !WINGET_SCOPE_ARGS! --accept-source-agreements --accept-package-agreements --disable-interactivity >> "%LOG_FILE%" 2>&1
+) else (
+    winget install --id "%WG_ID%" !WINGET_SCOPE_ARGS! --accept-source-agreements --accept-package-agreements --disable-interactivity >> "%LOG_FILE%" 2>&1
+)
+if !ERRORLEVEL! == 0 exit /b 0
+if "!WINGET_SCOPE_ARGS!"=="" exit /b 1
+call :log "!I18N_maintain_winget_scope_fallback!"
+if /i "%WG_ACTION%"=="upgrade" (
+    winget upgrade --id "%WG_ID%" --accept-source-agreements --accept-package-agreements --disable-interactivity >> "%LOG_FILE%" 2>&1
+) else (
+    winget install --id "%WG_ID%" --accept-source-agreements --accept-package-agreements --disable-interactivity >> "%LOG_FILE%" 2>&1
+)
+exit /b !ERRORLEVEL!
 
 :: Probe must exist and actually run (avoids WindowsApps store stubs).
 :probe_tool_ok

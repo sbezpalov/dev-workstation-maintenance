@@ -56,9 +56,9 @@ if !ERRORLEVEL! == 0 set "APP_ACTION=upgrade"
 
 call :log "!I18N_optional_apps_winget_action!"
 if /i "!APP_ACTION!"=="upgrade" (
-    winget upgrade --id "%APP_ID%" --accept-source-agreements --accept-package-agreements --disable-interactivity >> "!LOG_FILE!" 2>&1
+    call :winget_do_app upgrade "%APP_ID%"
 ) else (
-    winget install --id "%APP_ID%" --accept-source-agreements --accept-package-agreements --disable-interactivity >> "!LOG_FILE!" 2>&1
+    call :winget_do_app install "%APP_ID%"
 )
 
 if !ERRORLEVEL! neq 0 (
@@ -69,6 +69,24 @@ if !ERRORLEVEL! neq 0 (
     set /a APPS_OK+=1
 )
 exit /b 0
+
+:winget_do_app
+set "WG_ACTION=%~1"
+set "WG_ID=%~2"
+if /i "%WG_ACTION%"=="upgrade" (
+    winget upgrade --id "%WG_ID%" !WINGET_SCOPE_ARGS! --accept-source-agreements --accept-package-agreements --disable-interactivity >> "!LOG_FILE!" 2>&1
+) else (
+    winget install --id "%WG_ID%" !WINGET_SCOPE_ARGS! --accept-source-agreements --accept-package-agreements --disable-interactivity >> "!LOG_FILE!" 2>&1
+)
+if !ERRORLEVEL! == 0 exit /b 0
+if "!WINGET_SCOPE_ARGS!"=="" exit /b 1
+call :log "!I18N_maintain_winget_scope_fallback!"
+if /i "%WG_ACTION%"=="upgrade" (
+    winget upgrade --id "%WG_ID%" --accept-source-agreements --accept-package-agreements --disable-interactivity >> "!LOG_FILE!" 2>&1
+) else (
+    winget install --id "%WG_ID%" --accept-source-agreements --accept-package-agreements --disable-interactivity >> "!LOG_FILE!" 2>&1
+)
+exit /b !ERRORLEVEL!
 
 :: ---------------------------------------------------------------------------
 :health

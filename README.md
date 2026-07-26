@@ -17,6 +17,7 @@ Python нужен для IDE и AI-инструментов (Cursor, Antigravity
 ### Обслуживание (`maintain-dev-workstation.cmd`)
 
 - Последовательная обработка пакетов через `winget` (без блокировки MSI)
+- По умолчанию установка **на компьютер** (`--scope machine`, все пользователи); см. `WINGET_SCOPE` в `config/project.ini`
 - Три режима в `packages.list`: `upgrade` / `install` / `ensure` (внешние установки Python/PHP не дублируются)
 - Обновление pip и устаревших pip-пакетов + `pip check` (через `py -3` или реальный `python`)
 - Обновление npm и глобальных npm-пакетов + `npm doctor`
@@ -48,6 +49,7 @@ Python нужен для IDE и AI-инструментов (Cursor, Antigravity
 
 - Windows 11 (или Windows 10 с [App Installer](https://apps.microsoft.com/detail/9NBLGGH4NNS1))
 - `winget` в PATH
+- Для `WINGET_SCOPE=machine` (по умолчанию): запуск **от имени администратора** — иначе часть пакетов уйдёт в fallback без `--scope`
 - Для pip-блока: Python через `py` (Install Manager) или реальный `python` в PATH (не Store-заглушка); при отсутствии — `ensure` поставит `Python.Python.3.14`
 - Для npm-блока: Node.js
 - Для OpenClaw installer и очистки диска: PowerShell 5+ (встроен в Windows)
@@ -97,6 +99,7 @@ maintain-dev-workstation.cmd [options]
 | `--with-openrouter` | Настроить OpenRouter + CLI |
 | `--openrouter-key KEY` | API-ключ OpenRouter (`sk-or-v1-...`) |
 | `--language ru\|en` | Язык интерфейса (по умолчанию: `auto`) |
+| `--scope machine\|user\|auto` | Область winget: на компьютер / на пользователя / как решит winget (по умолчанию: `machine`) |
 | `--help` | Справка |
 
 ### Очистка диска
@@ -169,6 +172,10 @@ clean_disk.cmd --language en -DryRun
 ```ini
 # UI language: auto | ru | en
 LANGUAGE=auto
+
+# winget: machine | user | auto
+# machine = на компьютер / всех пользователей (по умолчанию; обычно нужен Administrator)
+WINGET_SCOPE=machine
 ```
 
 ### `config/packages.list`
