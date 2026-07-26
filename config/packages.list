@@ -1,13 +1,16 @@
 # Dev workstation packages for winget
-# Format: ACTION|WINGET_ID|DISPLAY_NAME
-# ACTION: upgrade | install
+# Format: ACTION|WINGET_ID|DISPLAY_NAME[|PROBE]
+# ACTION:
+#   upgrade — winget upgrade (package expected via winget)
+#   install — winget install (idempotent if already present)
+#   ensure  — if PROBE command exists on PATH, skip (externally managed);
+#             otherwise winget install as fallback
 #
 upgrade|OpenJS.NodeJS.LTS|Node.js LTS
-upgrade|Python.Python.3.13|Python 3.13
-upgrade|Python.Launcher|Python Launcher
+ensure|Python.Python.3.14|Python 3.14|py
 upgrade|Microsoft.PowerShell|PowerShell 7
-upgrade|GoLang.Go|Go
+install|GoLang.Go|Go
 upgrade|Microsoft.VisualStudioCode|Visual Studio Code
-upgrade|PHP.PHP.8.4|PHP 8.4
+ensure|PHP.PHP.NTS.8.5|PHP 8.5 NTS|php
 upgrade|Git.Git|Git
 upgrade|GitHub.cli|GitHub CLI

@@ -314,10 +314,10 @@ set "PKG_OK=0"
 set "PKG_FAIL=0"
 set "PKG_SKIP=0"
 
-for /f "usebackq tokens=1,2,3 delims=|" %%a in ("%CONFIG_FILE%") do (
+for /f "usebackq tokens=1-4 delims=|" %%a in ("%CONFIG_FILE%") do (
     set "LINE=%%a"
     if not "!LINE:~0,1!"=="#" if not "%%a"=="" (
-        call :process_package "%%a" "%%b" "%%c"
+        call :process_package "%%a" "%%b" "%%c" "%%d"
     )
 )
 exit /b 0
@@ -326,9 +326,23 @@ exit /b 0
 set "ACTION=%~1"
 set "PKG_ID=%~2"
 set "PKG_NAME=%~3"
+set "PKG_PROBE=%~4"
 
 if "%ACTION%"=="" exit /b 0
 if "%PKG_ID%"=="" exit /b 0
+
+if /i "%ACTION%"=="ensure" (
+    if not "%PKG_PROBE%"=="" (
+        call :probe_tool_ok "%PKG_PROBE%"
+        if "!PROBE_OK!"=="1" (
+            call :log ""
+            call :log "!I18N_maintain_winget_ensure_skip!"
+            set /a PKG_SKIP+=1
+            exit /b 0
+        )
+    )
+    set "ACTION=install"
+)
 
 call :log ""
 call :log "!I18N_maintain_winget_package!"
@@ -358,6 +372,31 @@ if !ERRORLEVEL! neq 0 (
 )
 
 call :refresh_path
+exit /b 0
+
+:: Probe must exist and actually run (avoids WindowsApps store stubs).
+:probe_tool_ok
+set "PROBE_OK=0"
+set "PROBE_NAME=%~1"
+if "%PROBE_NAME%"=="" exit /b 0
+where %PROBE_NAME% >nul 2>&1
+if !ERRORLEVEL! neq 0 exit /b 0
+if /i "%PROBE_NAME%"=="py" (
+    py -3 -c "import sys" >nul 2>&1
+    if !ERRORLEVEL! == 0 set "PROBE_OK=1"
+    exit /b 0
+)
+if /i "%PROBE_NAME%"=="php" (
+    php -v >nul 2>&1
+    if !ERRORLEVEL! == 0 set "PROBE_OK=1"
+    exit /b 0
+)
+if /i "%PROBE_NAME%"=="python" (
+    call :resolve_python
+    if "!PYTHON_OK!"=="1" set "PROBE_OK=1"
+    exit /b 0
+)
+set "PROBE_OK=1"
 exit /b 0
 
 :: ---------------------------------------------------------------------------
@@ -401,23 +440,18 @@ exit /b 0
 call :log ""
 call :log "!I18N_maintain_pip_check!"
 
-set "USE_PY_LAUNCHER=0"
-where python >nul 2>&1
-if !ERRORLEVEL! neq 0 (
-    where py >nul 2>&1
-    if !ERRORLEVEL! neq 0 (
-        call :log "!I18N_maintain_pip_skip!"
-        exit /b 0
-    )
-    set "USE_PY_LAUNCHER=1"
+call :resolve_python
+if "!PYTHON_OK!"=="0" (
+    call :log "!I18N_maintain_pip_skip!"
+    exit /b 0
 )
 
-if "!USE_PY_LAUNCHER!"=="0" (
-    for /f "delims=" %%v in ('python --version 2^>nul') do call :log "[info] %%v"
-    for /f "delims=" %%v in ('python -m pip --version 2^>nul') do call :log "[info] %%v"
-) else (
+if "!USE_PY_LAUNCHER!"=="1" (
     for /f "delims=" %%v in ('py -3 --version 2^>nul') do call :log "[info] %%v !I18N_maintain_pip_via_py!"
     for /f "delims=" %%v in ('py -3 -m pip --version 2^>nul') do call :log "[info] %%v"
+) else (
+    for /f "delims=" %%v in ('python --version 2^>nul') do call :log "[info] %%v"
+    for /f "delims=" %%v in ('python -m pip --version 2^>nul') do call :log "[info] %%v"
 )
 
 if "%DRY_RUN%"=="1" (
@@ -431,12 +465,12 @@ call :log "!I18N_maintain_pip_upgrade!"
 call :pip_cmd -m pip install --upgrade pip >> "%LOG_FILE%" 2>&1
 
 call :log "!I18N_maintain_pip_outdated!"
-if "!USE_PY_LAUNCHER!"=="0" (
-    for /f "skip=2 tokens=1" %%p in ('python -m pip list -o 2^>nul') do (
+if "!USE_PY_LAUNCHER!"=="1" (
+    for /f "skip=2 tokens=1" %%p in ('py -3 -m pip list -o 2^>nul') do (
         if not "%%p"=="" call :upgrade_pip_package "%%p"
     )
 ) else (
-    for /f "skip=2 tokens=1" %%p in ('py -3 -m pip list -o 2^>nul') do (
+    for /f "skip=2 tokens=1" %%p in ('python -m pip list -o 2^>nul') do (
         if not "%%p"=="" call :upgrade_pip_package "%%p"
     )
 )
@@ -447,6 +481,38 @@ if !ERRORLEVEL! neq 0 (
     call :log "!I18N_maintain_pip_check_warn!"
 ) else (
     call :log "!I18N_maintain_pip_check_ok!"
+)
+exit /b 0
+
+:: Prefer py launcher (Python Install Manager); else a real python.exe outside WindowsApps stub.
+:resolve_python
+set "PYTHON_OK=0"
+set "USE_PY_LAUNCHER=0"
+set "PYTHON_EXE="
+
+where py >nul 2>&1
+if !ERRORLEVEL! == 0 (
+    py -3 -c "import sys" >nul 2>&1
+    if !ERRORLEVEL! == 0 (
+        set "USE_PY_LAUNCHER=1"
+        set "PYTHON_OK=1"
+        exit /b 0
+    )
+)
+
+for /f "delims=" %%P in ('where python 2^>nul') do (
+    set "CAND=%%P"
+    echo !CAND! | findstr /i "\\WindowsApps\\" >nul
+    if !ERRORLEVEL! neq 0 (
+        "!CAND!" -c "import sys" >nul 2>&1
+        if !ERRORLEVEL! == 0 (
+            for %%I in ("!CAND!") do set "PATH=%%~dpI;!PATH!"
+            set "PYTHON_EXE=!CAND!"
+            set "USE_PY_LAUNCHER=0"
+            set "PYTHON_OK=1"
+            exit /b 0
+        )
+    )
 )
 exit /b 0
 
@@ -470,8 +536,7 @@ exit /b 0
 call :log ""
 call :log "!I18N_maintain_health_title!"
 
-call :report_tool "python" "python --version"
-call :report_tool "py" "py --version"
+call :report_python_health
 call :report_pip_version
 call :report_tool "node" "node --version"
 call :report_tool "npm" "npm --version"
@@ -520,18 +585,41 @@ if !ERRORLEVEL! neq 0 (
 :report_done
 exit /b 0
 
-:report_pip_version
-where python >nul 2>&1
-if !ERRORLEVEL! == 0 (
-    for /f "delims=" %%o in ('python -m pip --version 2^>nul') do (
-        call :log "  pip: %%o"
-        exit /b 0
+:report_python_health
+call :resolve_python
+if "!PYTHON_OK!"=="0" (
+    set "TOOL=python"
+    call :log "!I18N_maintain_tool_not_installed!"
+    exit /b 0
+)
+if "!USE_PY_LAUNCHER!"=="1" (
+    for /f "delims=" %%o in ('py -3 --version 2^>nul') do (
+        call :log "  py: %%o"
+        goto :report_python_health_done
+    )
+) else (
+    for /f "delims=" %%o in ('python --version 2^>nul') do (
+        call :log "  python: %%o"
+        goto :report_python_health_done
     )
 )
-where py >nul 2>&1
-if !ERRORLEVEL! == 0 (
+:report_python_health_done
+exit /b 0
+
+:report_pip_version
+call :resolve_python
+if "!PYTHON_OK!"=="0" (
+    call :log "!I18N_maintain_pip_not_installed!"
+    exit /b 0
+)
+if "!USE_PY_LAUNCHER!"=="1" (
     for /f "delims=" %%o in ('py -3 -m pip --version 2^>nul') do (
         call :log "  pip: %%o !I18N_maintain_pip_via_py!"
+        exit /b 0
+    )
+) else (
+    for /f "delims=" %%o in ('python -m pip --version 2^>nul') do (
+        call :log "  pip: %%o"
         exit /b 0
     )
 )

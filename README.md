@@ -1,26 +1,30 @@
 # Dev Workstation Maintenance
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Автоматическое обслуживание рабочего места разработчика на **Windows 11**.
 
 Скрипт обновляет инструменты через `winget`, поддерживает **Python/pip** и **npm**-экосистемы, опционально устанавливает **OpenClaw** и настраивает **OpenRouter**, очищает диск от кэшей и временных файлов. Основной сценарий обслуживания работает на **cmd.exe**; модуль очистки диска использует **PowerShell 5+** (встроен в Windows).
 
-Python нужен для IDE и AI-инструментов (Cursor, Antigravity, Claude Code, Perplexity, MCP-серверы, расширения VS Code).
+Python нужен для IDE и AI-инструментов (Cursor, Antigravity, Claude Code, Perplexity, MCP-серверы, расширения VS Code). Детект учитывает **Python Install Manager** (`py`) и игнорирует Store-заглушку в `WindowsApps`.
 
 Интерфейс скриптов локализован: **русский** и **английский** (`ru` / `en`), с автоопределением по языку системы.
+
+Лицензия: **MIT** — см. [LICENSE](LICENSE).
 
 ## Возможности
 
 ### Обслуживание (`maintain-dev-workstation.cmd`)
 
-- Последовательное обновление пакетов через `winget` (без блокировки MSI)
-- Обновление Python 3.13 + Python Launcher через `winget`
-- Обновление pip и устаревших pip-пакетов + `pip check`
+- Последовательная обработка пакетов через `winget` (без блокировки MSI)
+- Три режима в `packages.list`: `upgrade` / `install` / `ensure` (внешние установки Python/PHP не дублируются)
+- Обновление pip и устаревших pip-пакетов + `pip check` (через `py -3` или реальный `python`)
 - Обновление npm и глобальных npm-пакетов + `npm doctor`
-- Health-check версий: Python, pip, py launcher, Node, npm, Git, Go, PHP, PowerShell, gh, VS Code
-- Опционально: AI-приложения через winget (Cursor, Antigravity, Claude, Perplexity и их IDE/CLI варианты)
+- Health-check: Python, pip, Node, npm, Git, Go, PHP, PowerShell, gh, VS Code, OpenClaw
+- Опционально: AI-приложения через winget (Cursor, Antigravity, Claude, Perplexity и IDE/CLI варианты)
 - Опционально: OpenClaw (официальный `install.ps1` или npm)
 - Опционально: OpenRouter (API-ключ, env vars, CLI)
-- Журналы в `logs/`
+- Журналы в `/logs/` (каталог в `.gitignore`, в публичный репозиторий не попадает)
 - Ежемесячный запуск через `schtasks`
 
 ### Очистка диска (`clean_disk.cmd` / `clean_disk.ps1`)
@@ -44,7 +48,7 @@ Python нужен для IDE и AI-инструментов (Cursor, Antigravity
 
 - Windows 11 (или Windows 10 с [App Installer](https://apps.microsoft.com/detail/9NBLGGH4NNS1))
 - `winget` в PATH
-- Для pip-блока: Python (ставится через `winget`, если ещё нет)
+- Для pip-блока: Python через `py` (Install Manager) или реальный `python` в PATH (не Store-заглушка); при отсутствии — `ensure` поставит `Python.Python.3.14`
 - Для npm-блока: Node.js
 - Для OpenClaw installer и очистки диска: PowerShell 5+ (встроен в Windows)
 - Для очистки всех профилей: права администратора
@@ -169,14 +173,28 @@ LANGUAGE=auto
 
 ### `config/packages.list`
 
-Список пакетов winget. Формат: `ACTION|WINGET_ID|DISPLAY_NAME`
+Список пакетов winget. Формат: `ACTION|WINGET_ID|DISPLAY_NAME[|PROBE]`
+
+Текущий базовый стек:
 
 ```
 upgrade|OpenJS.NodeJS.LTS|Node.js LTS
-upgrade|Python.Python.3.13|Python 3.13
+ensure|Python.Python.3.14|Python 3.14|py
+upgrade|Microsoft.PowerShell|PowerShell 7
+install|GoLang.Go|Go
+upgrade|Microsoft.VisualStudioCode|Visual Studio Code
+ensure|PHP.PHP.NTS.8.5|PHP 8.5 NTS|php
 upgrade|Git.Git|Git
-install|GitHub.cli|GitHub CLI
+upgrade|GitHub.cli|GitHub CLI
 ```
+
+| ACTION | Поведение |
+|--------|-----------|
+| `upgrade` | `winget upgrade` (пакет ожидается из winget) |
+| `install` | `winget install` (если ещё нет) |
+| `ensure` | если `PROBE` есть в PATH и реально работает — пропуск (внешнее управление); иначе `winget install` |
+
+**Зачем `ensure`:** Python часто стоит через **Python Install Manager** (`py`), PHP — вручную (`C:\Program Files\PHP\...`). Скрипт не ставит второй экземпляр рядом с рабочей установкой.
 
 ### `config/optional.ini`
 
@@ -251,7 +269,7 @@ aggressive|user|.nuget\packages|nuget_packages
 OPENROUTER_API_KEY=sk-or-v1-your-key-here
 ```
 
-> `secrets.env` в `.gitignore` — не коммитьте ключи.
+> `secrets.env` и `/logs/` в `.gitignore` — не коммитьте ключи и журналы.
 
 ## Автозапуск (ежемесячно)
 
@@ -267,6 +285,8 @@ register-scheduled-task.cmd
 
 ```
 dev-workstation-maintenance/
+├── LICENSE                        # MIT
+├── README.md
 ├── maintain-dev-workstation.cmd   # Главный скрипт обслуживания
 ├── clean_disk.cmd                 # Лаунчер очистки диска
 ├── clean_disk.ps1                 # Оркестратор очистки (PowerShell)
@@ -283,7 +303,7 @@ dev-workstation-maintenance/
 ├── lib/
 │   ├── i18n.ps1                   # Ядро локализации (PowerShell)
 │   ├── i18n-data.ps1              # Строки ru / en
-│   ├── i18n-export.ps1            # Экспорт I18N_* для CMD
+│   ├── i18n-export.ps1            # Экспорт I18N_* для CMD (+ apply-скрипт)
 │   ├── i18n.cmd                   # Загрузчик локализации для CMD
 │   ├── optional-apps.cmd          # Cursor, Antigravity, Claude, Perplexity
 │   ├── optional-ai.cmd            # OpenClaw / OpenRouter
@@ -291,7 +311,7 @@ dev-workstation-maintenance/
 │   ├── cleanup-user.ps1           # Очистка профилей пользователей
 │   ├── cleanup-system.ps1         # cleanmgr, корзина, системные пути
 │   └── cleanup-i18n.ps1           # Обёртка совместимости → i18n.ps1
-└── logs/                          # Журналы (не в git)
+└── logs/                          # Журналы (игнорируется git: /logs/)
 ```
 
 ## OpenRouter и Claude Code
@@ -307,16 +327,22 @@ dev-workstation-maintenance/
 
 ## Безопасность
 
-- Передача API-ключей безопасна: аргументы командной строки и внутренние переменные обрабатываются через безопасное отложенное расширение (`delayed expansion`), что предотвращает инъекции команд (Command Injection) при наличии спецсимволов.
-- API-ключи рекомендуется хранить в `config/secrets.env` (шаблон в `secrets.env.example`) или безопасно передавать через флаг `--openrouter-key`.
-- Файл `secrets.env` добавлен в `.gitignore` и никогда не попадет в репозиторий.
-- Скрипт не логирует значения API-ключей в файлы журналов `logs/`.
-- UAC-запросы для инсталляторов MSI и очистки всех профилей — стандартное поведение Windows.
-- Очистка диска в режиме `-DryRun` не удаляет файлы — только показывает план.
+- Передача API-ключей: аргументы командной строки и внутренние переменные обрабатываются через delayed expansion, что снижает риск инъекций команд при спецсимволах в ключе.
+- API-ключи храните в `config/secrets.env` (шаблон — `secrets.env.example`) или передавайте через `--openrouter-key`.
+- `secrets.env` и `/logs/` в `.gitignore` — не попадают в публичный репозиторий.
+- Скрипт не логирует значения API-ключей в `logs/`.
+- UAC для MSI-инсталляторов и очистки всех профилей — штатное поведение Windows.
+- `-DryRun` у очистки диска только показывает план, файлы не удаляет.
 
 ## Лицензия
 
-[MIT](LICENSE) — свободное использование, модификация и распространение.
+Проект распространяется под лицензией **[MIT](LICENSE)** (SPDX: `MIT`).
+
+Copyright (c) 2026 [Sergey Bezpalov](https://github.com/sbezpalov)
+
+Разрешено свободно использовать, копировать, изменять, распространять и продавать копии при сохранении текста copyright и самого текста лицензии. ПО предоставляется «как есть», без гарантий.
+
+Полный текст: файл [LICENSE](LICENSE) в корне репозитория.
 
 ## Автор
 
