@@ -7,6 +7,8 @@
 
 Automated developer workstation maintenance for **Windows 11**.
 
+Community docs: [CONTRIBUTING](CONTRIBUTING.md) · [SECURITY](SECURITY.md) · [CHANGELOG](CHANGELOG.md)
+
 The script updates tools via `winget`, maintains **Python/pip** and **npm** ecosystems, optionally installs **OpenClaw** and configures **OpenRouter**, and cleans disk caches and temp files. The main maintenance flow runs on **cmd.exe**; disk cleanup uses **PowerShell 5+** (built into Windows).
 
 Python is required for IDEs and AI tools (Cursor, Antigravity, Claude Code, ChatGPT desktop, Codex CLI, Perplexity, MCP servers, VS Code extensions). Detection uses **Python Install Manager** (`py`) and ignores the Store stub under `WindowsApps`.
@@ -310,8 +312,14 @@ Task `DevWorkstationMaintenance` runs on the 1st of each month at 09:00.
 dev-workstation-maintenance/
 ├── LICENSE                        # MIT
 ├── VERSION                        # Project SemVer (currently 1.0.0)
+├── CHANGELOG.md                   # Keep a Changelog
+├── SECURITY.md / SECURITY.ru.md   # Security policy (GitHub Security tab)
+├── CONTRIBUTING.md / .ru.md       # Contribution guide
 ├── README.md                      # Russian
 ├── README.en.md                   # English
+├── .github/
+│   ├── PULL_REQUEST_TEMPLATE.md
+│   └── ISSUE_TEMPLATE/            # bug / feature + config
 ├── maintain-dev-workstation.cmd   # Main maintenance script
 ├── clean_disk.cmd                 # Disk cleanup launcher
 ├── clean_disk.ps1                 # Cleanup orchestrator (PowerShell)
@@ -352,10 +360,11 @@ When configuring OpenRouter, the script writes to the user environment:
 
 ## Security
 
+- Reporting and supported versions: [SECURITY.md](SECURITY.md) / [SECURITY.ru.md](SECURITY.ru.md).
 - API keys passed via CLI args and internal variables use delayed expansion, reducing command-injection risk with special characters in the key.
 - Store API keys in `config/secrets.env` (template: `secrets.env.example`) or pass via `--openrouter-key`.
 - `secrets.env` and `/logs/` are in `.gitignore` and are not published.
-- The script does not log API key values to `logs/`.
+- The script does not log API key values to `logs/` (including suppressing `reg add` output when writing user env).
 - UAC for MSI installers and all-profile cleanup is normal Windows behavior.
 - Disk cleanup `-DryRun` only shows a plan; it does not delete files.
 

@@ -7,6 +7,8 @@
 
 Автоматическое обслуживание рабочего места разработчика на **Windows 11**.
 
+Документы сообщества: [CONTRIBUTING](CONTRIBUTING.ru.md) · [SECURITY](SECURITY.ru.md) · [CHANGELOG](CHANGELOG.md)
+
 Скрипт обновляет инструменты через `winget`, поддерживает **Python/pip** и **npm**-экосистемы, опционально устанавливает **OpenClaw** и настраивает **OpenRouter**, очищает диск от кэшей и временных файлов. Основной сценарий обслуживания работает на **cmd.exe**; модуль очистки диска использует **PowerShell 5+** (встроен в Windows).
 
 Python нужен для IDE и AI-инструментов (Cursor, Antigravity, Claude Code, ChatGPT desktop, Codex CLI, Perplexity, MCP-серверы, расширения VS Code). Детект учитывает **Python Install Manager** (`py`) и игнорирует Store-заглушку в `WindowsApps`.
@@ -310,8 +312,14 @@ register-scheduled-task.cmd
 dev-workstation-maintenance/
 ├── LICENSE                        # MIT
 ├── VERSION                        # SemVer проекта (сейчас 1.0.0)
+├── CHANGELOG.md                   # История изменений (Keep a Changelog)
+├── SECURITY.md / SECURITY.ru.md   # Политика безопасности (вкладка Security)
+├── CONTRIBUTING.md / .ru.md       # Как участвовать в проекте
 ├── README.md                      # Русский
 ├── README.en.md                   # English
+├── .github/
+│   ├── PULL_REQUEST_TEMPLATE.md
+│   └── ISSUE_TEMPLATE/            # bug / feature + config
 ├── maintain-dev-workstation.cmd   # Главный скрипт обслуживания
 ├── clean_disk.cmd                 # Лаунчер очистки диска
 ├── clean_disk.ps1                 # Оркестратор очистки (PowerShell)
@@ -352,10 +360,11 @@ dev-workstation-maintenance/
 
 ## Безопасность
 
+- Подробности и ответственное раскрытие: [SECURITY.ru.md](SECURITY.ru.md) / [SECURITY.md](SECURITY.md).
 - Передача API-ключей: аргументы командной строки и внутренние переменные обрабатываются через delayed expansion, что снижает риск инъекций команд при спецсимволах в ключе.
 - API-ключи храните в `config/secrets.env` (шаблон — `secrets.env.example`) или передавайте через `--openrouter-key`.
 - `secrets.env` и `/logs/` в `.gitignore` — не попадают в публичный репозиторий.
-- Скрипт не логирует значения API-ключей в `logs/`.
+- Скрипт не логирует значения API-ключей в `logs/` (в т.ч. вывод `reg add` при записи user env подавляется).
 - UAC для MSI-инсталляторов и очистки всех профилей — штатное поведение Windows.
 - `-DryRun` у очистки диска только показывает план, файлы не удаляет.
 

@@ -173,8 +173,15 @@ set "ENV_NAME=%~1"
 set "ENV_VAR_NAME=%~2"
 set "ENV_VALUE="
 if defined ENV_VAR_NAME set "ENV_VALUE=!%ENV_VAR_NAME%!"
-reg add "HKCU\Environment" /v "!ENV_NAME!" /t REG_SZ /d "!ENV_VALUE!" /f >> "!LOG_FILE!" 2>&1
-exit /b !ERRORLEVEL!
+:: Do not redirect reg output to LOG_FILE — /d may contain secrets (API keys).
+reg add "HKCU\Environment" /v "!ENV_NAME!" /t REG_SZ /d "!ENV_VALUE!" /f >nul 2>&1
+set "REG_RC=!ERRORLEVEL!"
+if !REG_RC! == 0 (
+    call :log "[ok] user env set: !ENV_NAME!"
+) else (
+    call :log "[warn] failed to set user env: !ENV_NAME! (reg exit !REG_RC!)"
+)
+exit /b !REG_RC!
 
 :: ---------------------------------------------------------------------------
 :log
