@@ -3,9 +3,9 @@ contact_links:
   - name: Security report
     url: https://github.com/sbezpalov/dev-workstation-maintenance/security/advisories/new
     about: Report vulnerabilities privately (do not use public issues).
-  - name: Documentation (English)
-    url: https://github.com/sbezpalov/dev-workstation-maintenance/blob/main/README.en.md
+  - name: Documentation (English, default)
+    url: https://github.com/sbezpalov/dev-workstation-maintenance/blob/main/README.md
     about: Usage and configuration guide.
   - name: Documentation (Russian)
-    url: https://github.com/sbezpalov/dev-workstation-maintenance/blob/main/README.md
+    url: https://github.com/sbezpalov/dev-workstation-maintenance/blob/main/README.ru.md
     about: Руководство по использованию и конфигурации.

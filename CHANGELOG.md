@@ -10,8 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - SemVer baseline via root `VERSION` and `config/project.ini`
+- English as the default language for docs and UI (`README.md`, `LANGUAGE=en`); Russian alternative: `README.ru.md` / `--language ru`
 - Optional ChatGPT desktop (Microsoft Store) and Codex CLI (`--with-chatgpt`, `--with-codex-cli`)
-- English documentation: `README.en.md`
 - Community health: `SECURITY.md`, `CONTRIBUTING.md`, GitHub issue/PR templates
 - `CHANGELOG.md`
 

@@ -1,6 +1,6 @@
 # Security Policy
 
-[Русский](SECURITY.ru.md) · **English**
+**English** · [Русский](SECURITY.ru.md)
 
 ## Supported versions
 
@@ -15,7 +15,7 @@ Please **do not** open a public GitHub issue for security problems.
 Report privately via one of:
 
 1. [GitHub Security Advisories](https://github.com/sbezpalov/dev-workstation-maintenance/security/advisories/new) (preferred)
-2. Email the maintainer listed in the repository profile / [Author](README.en.md#author)
+2. Email the maintainer listed in the repository profile / [Author](README.md#author)
 
 Include:
 

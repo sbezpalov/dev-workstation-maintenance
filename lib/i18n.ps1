@@ -60,7 +60,7 @@ function Get-ProjectLanguagePreference {
         return $fromFallback
     }
 
-    return 'auto'
+    return 'en'
 }
 
 function Initialize-ProjectLanguage {

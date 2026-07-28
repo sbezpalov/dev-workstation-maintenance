@@ -3,198 +3,198 @@
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](VERSION)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Русский** · [English](README.en.md)
+**English** · [Русский](README.ru.md)
 
-Автоматическое обслуживание рабочего места разработчика на **Windows 11**.
+Automated developer workstation maintenance for **Windows 11**.
 
-Документы сообщества: [CONTRIBUTING](CONTRIBUTING.ru.md) · [SECURITY](SECURITY.ru.md) · [CHANGELOG](CHANGELOG.md)
+Community docs: [CONTRIBUTING](CONTRIBUTING.md) · [SECURITY](SECURITY.md) · [CHANGELOG](CHANGELOG.md)
 
-Скрипт обновляет инструменты через `winget`, поддерживает **Python/pip** и **npm**-экосистемы, опционально устанавливает **OpenClaw** и настраивает **OpenRouter**, очищает диск от кэшей и временных файлов. Основной сценарий обслуживания работает на **cmd.exe**; модуль очистки диска использует **PowerShell 5+** (встроен в Windows).
+The script updates tools via `winget`, maintains **Python/pip** and **npm** ecosystems, optionally installs **OpenClaw** and configures **OpenRouter**, and cleans disk caches and temp files. The main maintenance flow runs on **cmd.exe**; disk cleanup uses **PowerShell 5+** (built into Windows).
 
-Python нужен для IDE и AI-инструментов (Cursor, Antigravity, Claude Code, ChatGPT desktop, Codex CLI, Perplexity, MCP-серверы, расширения VS Code). Детект учитывает **Python Install Manager** (`py`) и игнорирует Store-заглушку в `WindowsApps`.
+Python is required for IDEs and AI tools (Cursor, Antigravity, Claude Code, ChatGPT desktop, Codex CLI, Perplexity, MCP servers, VS Code extensions). Detection uses **Python Install Manager** (`py`) and ignores the Store stub under `WindowsApps`.
 
-Интерфейс скриптов локализован: **русский** и **английский** (`ru` / `en`), с автоопределением по языку системы.
+Script UI is localized: **English** (default) and **Russian** (`en` / `ru`). Optional `auto` follows the Windows UI language.
 
-Текущая версия проекта: **1.0.0** (файл [`VERSION`](VERSION), также `VERSION` в `config/project.ini`).
+Current project version: **1.0.0** (see [`VERSION`](VERSION); also `VERSION` in `config/project.ini`).
 
-Лицензия: **MIT** — см. [LICENSE](LICENSE).
+License: **MIT** — see [LICENSE](LICENSE).
 
-## Возможности
+## Features
 
-### Обслуживание (`maintain-dev-workstation.cmd`)
+### Maintenance (`maintain-dev-workstation.cmd`)
 
-- Последовательная обработка пакетов через `winget` (без блокировки MSI)
-- По умолчанию установка **на компьютер** (`--scope machine`, все пользователи); см. `WINGET_SCOPE` в `config/project.ini`
-- Три режима в `packages.list`: `upgrade` / `install` / `ensure` (внешние установки Python/PHP не дублируются)
-- Обновление pip и устаревших pip-пакетов + `pip check` (через `py -3` или реальный `python`)
-- Обновление npm и глобальных npm-пакетов + `npm doctor`
-- Health-check: Python, pip, Node, npm, Git, Go, PHP, PowerShell, gh, VS Code, OpenClaw
-- Опционально: AI-приложения через winget (Cursor, Antigravity, Claude, ChatGPT, Codex CLI, Perplexity и IDE/CLI варианты)
-- Опционально: OpenClaw (официальный `install.ps1` или npm)
-- Опционально: OpenRouter (API-ключ, env vars, CLI)
-- Журналы в `/logs/` (каталог в `.gitignore`, в публичный репозиторий не попадает)
-- Ежемесячный запуск через `schtasks`
+- Sequential `winget` package processing (avoids MSI lock contention)
+- Default install scope is **machine-wide** (`--scope machine`, all users); see `WINGET_SCOPE` in `config/project.ini`
+- Three modes in `packages.list`: `upgrade` / `install` / `ensure` (does not duplicate external Python/PHP installs)
+- pip upgrade for outdated packages + `pip check` (via `py -3` or a real `python`)
+- npm self-update and global package update + `npm doctor`
+- Health checks: Python, pip, Node, npm, Git, Go, PHP, PowerShell, gh, VS Code, OpenClaw
+- Optional: AI apps via winget (Cursor, Antigravity, Claude, ChatGPT, Codex CLI, Perplexity and IDE/CLI variants)
+- Optional: OpenClaw (official `install.ps1` or npm)
+- Optional: OpenRouter (API key, env vars, CLI)
+- Logs under `/logs/` (directory is in `.gitignore`, not published)
+- Monthly run via `schtasks`
 
-### Очистка диска (`clean_disk.cmd` / `clean_disk.ps1`)
+### Disk cleanup (`clean_disk.cmd` / `clean_disk.ps1`)
 
-- Модульная очистка системного диска для **всех профилей** в `C:\Users\*`
-- Три уровня: `safe` → `developer` → `aggressive` (каждый включает предыдущий)
-- Кэши GPU: NVIDIA (DXCache, GLCache), AMD (DxCache, DxcCache, VkCache, GLCache, OglpCache), Windows D3DSCache
-- Кэши dev-инструментов: pip, npm, Go, Cursor, VS Code, WinGet, NuGet, Gradle, Cargo, pnpm, Yarn
-- Опционально: Windows Disk Cleanup (`cleanmgr`), очистка корзины
-- Режим `-DryRun`, журнал в `logs/`
-- Запрос прав администратора (UAC) для очистки всех профилей
+- Modular system-drive cleanup for **all profiles** under `C:\Users\*`
+- Three tiers: `safe` → `developer` → `aggressive` (each includes the previous)
+- GPU caches: NVIDIA (DXCache, GLCache), AMD (DxCache, DxcCache, VkCache, GLCache, OglpCache), Windows D3DSCache
+- Dev tool caches: pip, npm, Go, Cursor, VS Code, WinGet, NuGet, Gradle, Cargo, pnpm, Yarn
+- Optional: Windows Disk Cleanup (`cleanmgr`), Recycle Bin empty
+- `-DryRun` mode, log under `logs/`
+- Requests administrator rights (UAC) to clean all profiles
 
-### Локализация (i18n)
+### Localization (i18n)
 
-- Языки: `ru`, `en`, `auto` (русский при русской системе, иначе английский)
-- Настройка по умолчанию: `config/project.ini`
-- Переопределение из CLI: `--language ru|en` (CMD) или `-Language ru|en` (PowerShell)
-- Локализованы все пользовательские сообщения: обслуживание, OpenClaw, OpenRouter, optional apps, очистка диска, планировщик
+- Languages: `en` (default), `ru`, `auto` (follow Windows UI language)
+- Default setting: `LANGUAGE=en` in `config/project.ini`
+- CLI override: `--language en|ru` (CMD) or `-Language en|ru` (PowerShell)
+- Localized user-facing messages: maintenance, OpenClaw, OpenRouter, optional apps, disk cleanup, scheduler
 
-## Требования
+## Requirements
 
-- Windows 11 (или Windows 10 с [App Installer](https://apps.microsoft.com/detail/9NBLGGH4NNS1))
-- `winget` в PATH
-- Для `WINGET_SCOPE=machine` (по умолчанию): запуск **от имени администратора** — иначе часть пакетов уйдёт в fallback без `--scope`
-- Для pip-блока: Python через `py` (Install Manager) или реальный `python` в PATH (не Store-заглушка); при отсутствии — `ensure` поставит `Python.Python.3.14`
-- Для npm-блока: Node.js
-- Для OpenClaw installer и очистки диска: PowerShell 5+ (встроен в Windows)
-- Для очистки всех профилей: права администратора
+- Windows 11 (or Windows 10 with [App Installer](https://apps.microsoft.com/detail/9NBLGGH4NNS1))
+- `winget` on PATH
+- For `WINGET_SCOPE=machine` (default): run **as Administrator** — otherwise some packages fall back without `--scope`
+- For the pip block: Python via `py` (Install Manager) or a real `python` on PATH (not the Store stub); if missing, `ensure` installs `Python.Python.3.14`
+- For the npm block: Node.js
+- For OpenClaw installer and disk cleanup: PowerShell 5+ (built into Windows)
+- To clean all profiles: administrator rights
 
-## Быстрый старт
+## Quick start
 
 ```cmd
 git clone https://github.com/sbezpalov/dev-workstation-maintenance.git
 cd dev-workstation-maintenance
 
-:: Просмотр без изменений
+:: Preview without changes
 maintain-dev-workstation.cmd --dry-run
 
-:: Полное обслуживание
+:: Full maintenance
 maintain-dev-workstation.cmd
 
-:: Очистка диска (dry-run, уровень из config\cleanup.ini)
+:: Disk cleanup (dry-run, tier from config\cleanup.ini)
 clean_disk.cmd -DryRun
 ```
 
-## Использование
+## Usage
 
-### Обслуживание
+### Maintenance
 
 ```cmd
 maintain-dev-workstation.cmd [options]
 ```
 
-| Флаг | Описание |
-|------|----------|
-| `--dry-run` | Показать план без изменений |
-| `--skip-winget` | Пропустить обновления winget |
-| `--skip-pip` | Пропустить pip upgrade / check |
-| `--skip-npm` | Пропустить npm update / doctor |
-| `--with-cursor` | Установить / обновить Cursor IDE |
-| `--with-antigravity` | Установить / обновить Antigravity IDE |
-| `--with-antigravity-cli` | Установить / обновить Antigravity CLI |
-| `--with-claude` | Установить / обновить Claude (desktop) |
-| `--with-claude-code` | Установить / обновить Claude Code CLI |
-| `--with-chatgpt` | Установить / обновить ChatGPT desktop (Microsoft Store; внутри уже есть Codex) |
-| `--with-codex-cli` | Установить / обновить Codex CLI (отдельный терминальный агент) |
-| `--with-perplexity` | Установить / обновить Perplexity |
-| `--with-perplexity-comet` | Установить / обновить Perplexity Comet |
-| `--with-ai-apps` | Все опциональные AI-приложения выше |
-| `--with-openclaw` | Установить OpenClaw |
-| `--openclaw-onboard` | Полная установка OpenClaw с onboarding |
-| `--openclaw-npm` | OpenClaw через npm вместо install.ps1 |
-| `--with-openrouter` | Настроить OpenRouter + CLI |
-| `--openrouter-key KEY` | API-ключ OpenRouter (`sk-or-v1-...`) |
-| `--language ru\|en` | Язык интерфейса (по умолчанию: `auto`) |
-| `--scope machine\|user\|auto` | Область winget: на компьютер / на пользователя / как решит winget (по умолчанию: `machine`) |
-| `--help` | Справка |
+| Flag | Description |
+|------|-------------|
+| `--dry-run` | Show plan without applying changes |
+| `--skip-winget` | Skip winget updates |
+| `--skip-pip` | Skip pip upgrade / check |
+| `--skip-npm` | Skip npm update / doctor |
+| `--with-cursor` | Install / upgrade Cursor IDE |
+| `--with-antigravity` | Install / upgrade Antigravity IDE |
+| `--with-antigravity-cli` | Install / upgrade Antigravity CLI |
+| `--with-claude` | Install / upgrade Claude (desktop) |
+| `--with-claude-code` | Install / upgrade Claude Code CLI |
+| `--with-chatgpt` | Install / upgrade ChatGPT desktop (Microsoft Store; already includes Codex) |
+| `--with-codex-cli` | Install / upgrade Codex CLI (separate terminal agent) |
+| `--with-perplexity` | Install / upgrade Perplexity |
+| `--with-perplexity-comet` | Install / upgrade Perplexity Comet |
+| `--with-ai-apps` | All optional AI apps above |
+| `--with-openclaw` | Install OpenClaw |
+| `--openclaw-onboard` | Full OpenClaw install with onboarding |
+| `--openclaw-npm` | OpenClaw via npm instead of install.ps1 |
+| `--with-openrouter` | Configure OpenRouter + CLI |
+| `--openrouter-key KEY` | OpenRouter API key (`sk-or-v1-...`) |
+| `--language en\|ru` | UI language (default: `en`) |
+| `--scope machine\|user\|auto` | winget scope: machine / user / let winget decide (default: `machine`) |
+| `--help` | Show help |
 
-### Очистка диска
+### Disk cleanup
 
 ```cmd
 clean_disk.cmd [options]
 ```
 
-| Параметр | Описание |
-|----------|----------|
-| `-DryRun` | Показать план без удаления |
-| `-Tier safe\|developer\|aggressive` | Уровень очистки (переопределяет `config\cleanup.ini`) |
-| `-Language ru\|en` | Язык интерфейса |
-| `--language ru\|en` | То же (для CMD-лаунчера) |
+| Parameter | Description |
+|-----------|-------------|
+| `-DryRun` | Show plan without deleting |
+| `-Tier safe\|developer\|aggressive` | Cleanup tier (overrides `config\cleanup.ini`) |
+| `-Language en\|ru` | UI language |
+| `--language en\|ru` | Same (for the CMD launcher) |
 
-Уровни очистки:
+Cleanup tiers:
 
-| Уровень | Что удаляется |
-|---------|---------------|
-| `safe` | Temp, кэши шейдеров GPU (NVIDIA / AMD / Windows), `*.tmp` / `*.dmp` в корне профиля |
-| `developer` | + кэши pip, npm, Go, IDE (Cursor, VS Code), WinGet, Internet / Web cache |
-| `aggressive` | + NuGet, Gradle, Cargo, pnpm, Yarn (перекачка при следующем использовании) |
+| Tier | What is removed |
+|------|-----------------|
+| `safe` | Temp, GPU shader caches (NVIDIA / AMD / Windows), `*.tmp` / `*.dmp` in profile roots |
+| `developer` | + pip, npm, Go, IDE (Cursor, VS Code), WinGet, Internet / Web cache |
+| `aggressive` | + NuGet, Gradle, Cargo, pnpm, Yarn (will re-download on next use) |
 
 ### OpenClaw
 
 ```cmd
-install-openclaw.cmd [--quick] [--language ru|en]
+install-openclaw.cmd [--quick] [--language en|ru]
 ```
 
-| Флаг | Описание |
-|------|----------|
-| `--quick` | Установка без интерактивного onboarding |
-| `--language ru\|en` | Язык сообщений |
+| Flag | Description |
+|------|-------------|
+| `--quick` | Install without interactive onboarding |
+| `--language en\|ru` | Message language |
 
-### Примеры
+### Examples
 
 ```cmd
-:: Только dev-инструменты
+:: Dev tools only
 maintain-dev-workstation.cmd
 
-:: С русским интерфейсом
+:: Russian UI
 maintain-dev-workstation.cmd --language ru --dry-run
 
-:: AI IDE и desktop-приложения (без OpenClaw)
+:: AI IDE and desktop apps (no OpenClaw)
 maintain-dev-workstation.cmd --with-cursor --with-claude-code --with-perplexity
 
-:: Все AI-приложения из optional-apps.list
+:: All AI apps from optional-apps.list
 maintain-dev-workstation.cmd --with-ai-apps
 
 :: OpenClaw + OpenRouter
 maintain-dev-workstation.cmd --with-openclaw --with-openrouter --openrouter-key sk-or-v1-XXX
 
-:: Официальный установщик OpenClaw отдельно
+:: Official OpenClaw installer separately
 install-openclaw.cmd
 install-openclaw.cmd --quick
 
-:: Очистка диска: агрессивный уровень, dry-run
+:: Disk cleanup: aggressive tier, dry-run
 clean_disk.cmd -DryRun -Tier aggressive
 
-:: Очистка с английским интерфейсом
-clean_disk.cmd --language en -DryRun
+:: Cleanup with Russian UI
+clean_disk.cmd --language ru -DryRun
 ```
 
-## Конфигурация
+## Configuration
 
 ### `config/project.ini`
 
-Общие настройки проекта:
+Project-wide settings:
 
 ```ini
-# UI language: auto | ru | en
-LANGUAGE=auto
+# UI language: en | ru | auto  (default: en)
+LANGUAGE=en
 
 # SemVer (also in root VERSION file)
 VERSION=1.0.0
 
 # winget: machine | user | auto
-# machine = на компьютер / всех пользователей (по умолчанию; обычно нужен Administrator)
+# machine = all users on this computer (default; usually needs Administrator)
 WINGET_SCOPE=machine
 ```
 
 ### `config/packages.list`
 
-Список пакетов winget. Формат: `ACTION|WINGET_ID|DISPLAY_NAME[|PROBE]`
+winget package list. Format: `ACTION|WINGET_ID|DISPLAY_NAME[|PROBE]`
 
-Текущий базовый стек:
+Current base stack:
 
 ```
 upgrade|OpenJS.NodeJS.LTS|Node.js LTS
@@ -207,13 +207,13 @@ upgrade|Git.Git|Git
 upgrade|GitHub.cli|GitHub CLI
 ```
 
-| ACTION | Поведение |
-|--------|-----------|
-| `upgrade` | `winget upgrade` (пакет ожидается из winget) |
-| `install` | `winget install` (если ещё нет) |
-| `ensure` | если `PROBE` есть в PATH и реально работает — пропуск (внешнее управление); иначе `winget install` |
+| ACTION | Behavior |
+|--------|----------|
+| `upgrade` | `winget upgrade` (package expected from winget) |
+| `install` | `winget install` (if not present) |
+| `ensure` | if `PROBE` is on PATH and works — skip (externally managed); otherwise `winget install` |
 
-**Зачем `ensure`:** Python часто стоит через **Python Install Manager** (`py`), PHP — вручную (`C:\Program Files\PHP\...`). Скрипт не ставит второй экземпляр рядом с рабочей установкой.
+**Why `ensure`:** Python is often installed via **Python Install Manager** (`py`), PHP manually (`C:\Program Files\PHP\...`). The script does not place a second copy next to a working install.
 
 ### `config/optional.ini`
 
@@ -239,7 +239,7 @@ INSTALL_PERPLEXITY_COMET=0
 
 ### `config/optional-apps.list`
 
-Список AI desktop / IDE приложений для winget. Формат: `FLAG|WINGET_ID|DISPLAY_NAME|CLI_TOOL|CLI_CMD`
+AI desktop / IDE apps for winget. Format: `FLAG|WINGET_ID|DISPLAY_NAME|CLI_TOOL|CLI_CMD`
 
 ```
 INSTALL_CURSOR|Anysphere.Cursor|Cursor|cursor|cursor --version
@@ -248,17 +248,17 @@ INSTALL_CHATGPT|9PLM9XGG6VKS|ChatGPT (incl. Codex)|||
 INSTALL_CODEX_CLI|OpenAI.Codex|Codex CLI|codex|codex --version
 ```
 
-> **ChatGPT vs Codex:** desktop ChatGPT из Store — единое приложение OpenAI (`OpenAI.Codex_*`), в нём уже есть агент Codex. Отдельно ставится только **Codex CLI** (`--with-codex-cli`).
+> **ChatGPT vs Codex:** Store ChatGPT is a single OpenAI desktop app (`OpenAI.Codex_*`) that already includes the Codex agent. Only **Codex CLI** is installed separately (`--with-codex-cli`).
 
-Флаги из `optional.ini` или CLI (`--with-cursor`, `--with-chatgpt`, `--with-codex-cli` и т.д.) включают установку / обновление соответствующей строки.
+Flags from `optional.ini` or CLI (`--with-cursor`, `--with-chatgpt`, `--with-codex-cli`, etc.) enable install/upgrade for the matching row.
 
 ### `config/cleanup.ini`
 
-Профиль очистки диска:
+Disk cleanup profile:
 
 ```ini
 CLEANUP_TIER=developer
-LANGUAGE=auto          # fallback; основной язык — config\project.ini
+LANGUAGE=en            # fallback; primary language is config\project.ini
 
 RUN_CLEANMGR=1
 CLEANMGR_SAGESET=65535
@@ -266,7 +266,7 @@ CLEAR_RECYCLE_BIN=1
 CLEAR_LOOSE_FILES=1
 ```
 
-Перед первым запуском `cleanmgr` выполните один раз вручную:
+Before the first `cleanmgr` run, configure categories once manually:
 
 ```cmd
 cleanmgr /sageset:65535
@@ -274,7 +274,7 @@ cleanmgr /sageset:65535
 
 ### `config/cleanup.list`
 
-Цели очистки. Формат: `MIN_TIER|SCOPE|PATH|NAME_KEY`
+Cleanup targets. Format: `MIN_TIER|SCOPE|PATH|NAME_KEY`
 
 ```
 safe|user|AppData\Local\Temp|user_temp
@@ -283,101 +283,101 @@ developer|user|AppData\Local\pip\cache|pip_cache
 aggressive|user|.nuget\packages|nuget_packages
 ```
 
-- `SCOPE`: `user` (для каждого профиля в `C:\Users`) или `system` (один раз)
-- `NAME_KEY`: ключ локализации (префикс `target.` в `lib/i18n-data.ps1`)
+- `SCOPE`: `user` (per profile under `C:\Users`) or `system` (once)
+- `NAME_KEY`: localization key (prefix `target.` in `lib/i18n-data.ps1`)
 
 ### `config/secrets.env`
 
-Скопируйте `secrets.env.example` → `secrets.env` и добавьте ключи:
+Copy `secrets.env.example` → `secrets.env` and add keys:
 
 ```ini
 OPENROUTER_API_KEY=sk-or-v1-your-key-here
 ```
 
-> `secrets.env` и `/logs/` в `.gitignore` — не коммитьте ключи и журналы.
+> `secrets.env` and `/logs/` are in `.gitignore` — do not commit keys or logs.
 
-## Автозапуск (ежемесячно)
+## Scheduled run (monthly)
 
-Запустите **от имени администратора** один раз:
+Run **as Administrator** once:
 
 ```cmd
 register-scheduled-task.cmd
 ```
 
-Задача `DevWorkstationMaintenance` выполняется 1-го числа каждого месяца в 09:00.
+Task `DevWorkstationMaintenance` runs on the 1st of each month at 09:00.
 
-## Структура проекта
+## Project layout
 
 ```
 dev-workstation-maintenance/
 ├── LICENSE                        # MIT
-├── VERSION                        # SemVer проекта (сейчас 1.0.0)
-├── CHANGELOG.md                   # История изменений (Keep a Changelog)
-├── SECURITY.md / SECURITY.ru.md   # Политика безопасности (вкладка Security)
-├── CONTRIBUTING.md / .ru.md       # Как участвовать в проекте
-├── README.md                      # Русский
-├── README.en.md                   # English
+├── VERSION                        # Project SemVer (currently 1.0.0)
+├── CHANGELOG.md                   # Keep a Changelog
+├── SECURITY.md / SECURITY.ru.md   # Security policy (GitHub Security tab)
+├── CONTRIBUTING.md / .ru.md       # Contribution guide
+├── README.md                      # English (default)
+├── README.ru.md                   # Russian
 ├── .github/
 │   ├── PULL_REQUEST_TEMPLATE.md
 │   └── ISSUE_TEMPLATE/            # bug / feature + config
-├── maintain-dev-workstation.cmd   # Главный скрипт обслуживания
-├── clean_disk.cmd                 # Лаунчер очистки диска
-├── clean_disk.ps1                 # Оркестратор очистки (PowerShell)
-├── install-openclaw.cmd           # Официальный установщик OpenClaw
-├── register-scheduled-task.cmd    # Регистрация задачи в планировщике
+├── maintain-dev-workstation.cmd   # Main maintenance script
+├── clean_disk.cmd                 # Disk cleanup launcher
+├── clean_disk.ps1                 # Cleanup orchestrator (PowerShell)
+├── install-openclaw.cmd           # Official OpenClaw installer
+├── register-scheduled-task.cmd    # Scheduled task registration
 ├── config/
-│   ├── project.ini                # Общие настройки (язык, версия, winget scope)
-│   ├── packages.list              # Пакеты winget (базовый dev-стек)
-│   ├── optional.ini               # Флаги опциональных сервисов
-│   ├── optional-apps.list         # Опциональные AI IDE / desktop apps
-│   ├── cleanup.ini                # Профиль очистки диска
-│   ├── cleanup.list               # Цели очистки (tier / scope / path)
-│   └── secrets.env.example        # Шаблон секретов
+│   ├── project.ini                # Shared settings (language, version, winget scope)
+│   ├── packages.list              # winget packages (base dev stack)
+│   ├── optional.ini               # Optional service flags
+│   ├── optional-apps.list         # Optional AI IDE / desktop apps
+│   ├── cleanup.ini                # Disk cleanup profile
+│   ├── cleanup.list               # Cleanup targets (tier / scope / path)
+│   └── secrets.env.example        # Secrets template
 ├── lib/
-│   ├── i18n.ps1                   # Ядро локализации (PowerShell)
-│   ├── i18n-data.ps1              # Строки ru / en
-│   ├── i18n-export.ps1            # Экспорт I18N_* для CMD (+ apply-скрипт)
-│   ├── i18n.cmd                   # Загрузчик локализации для CMD
+│   ├── i18n.ps1                   # Localization core (PowerShell)
+│   ├── i18n-data.ps1              # ru / en strings
+│   ├── i18n-export.ps1            # Export I18N_* for CMD (+ apply script)
+│   ├── i18n.cmd                   # CMD localization loader
 │   ├── optional-apps.cmd          # Cursor, Antigravity, Claude, ChatGPT, Codex CLI, Perplexity
 │   ├── optional-ai.cmd            # OpenClaw / OpenRouter
-│   ├── cleanup-common.ps1         # Общие функции очистки
-│   ├── cleanup-user.ps1           # Очистка профилей пользователей
-│   ├── cleanup-system.ps1         # cleanmgr, корзина, системные пути
-│   └── cleanup-i18n.ps1           # Обёртка совместимости → i18n.ps1
-└── logs/                          # Журналы (игнорируется git: /logs/)
+│   ├── cleanup-common.ps1         # Shared cleanup helpers
+│   ├── cleanup-user.ps1           # Per-user profile cleanup
+│   ├── cleanup-system.ps1         # cleanmgr, Recycle Bin, system paths
+│   └── cleanup-i18n.ps1           # Compatibility wrapper → i18n.ps1
+└── logs/                          # Logs (gitignored: /logs/)
 ```
 
-## OpenRouter и Claude Code
+## OpenRouter and Claude Code
 
-При настройке OpenRouter скрипт сохраняет в пользовательское окружение:
+When configuring OpenRouter, the script writes to the user environment:
 
 - `OPENROUTER_API_KEY`
 - `ANTHROPIC_BASE_URL=https://openrouter.ai/api`
 - `ANTHROPIC_AUTH_TOKEN`
-- `ANTHROPIC_API_KEY=` (пустая строка — важно для Claude Code)
+- `ANTHROPIC_API_KEY=` (empty string — important for Claude Code)
 
-После установки **перезапустите терминал**.
+**Restart the terminal** after install.
 
-## Безопасность
+## Security
 
-- Подробности и ответственное раскрытие: [SECURITY.ru.md](SECURITY.ru.md) / [SECURITY.md](SECURITY.md).
-- Передача API-ключей: аргументы командной строки и внутренние переменные обрабатываются через delayed expansion, что снижает риск инъекций команд при спецсимволах в ключе.
-- API-ключи храните в `config/secrets.env` (шаблон — `secrets.env.example`) или передавайте через `--openrouter-key`.
-- `secrets.env` и `/logs/` в `.gitignore` — не попадают в публичный репозиторий.
-- Скрипт не логирует значения API-ключей в `logs/` (в т.ч. вывод `reg add` при записи user env подавляется).
-- UAC для MSI-инсталляторов и очистки всех профилей — штатное поведение Windows.
-- `-DryRun` у очистки диска только показывает план, файлы не удаляет.
+- Reporting and supported versions: [SECURITY.md](SECURITY.md) / [SECURITY.ru.md](SECURITY.ru.md).
+- API keys passed via CLI args and internal variables use delayed expansion, reducing command-injection risk with special characters in the key.
+- Store API keys in `config/secrets.env` (template: `secrets.env.example`) or pass via `--openrouter-key`.
+- `secrets.env` and `/logs/` are in `.gitignore` and are not published.
+- The script does not log API key values to `logs/` (including suppressing `reg add` output when writing user env).
+- UAC for MSI installers and all-profile cleanup is normal Windows behavior.
+- Disk cleanup `-DryRun` only shows a plan; it does not delete files.
 
-## Лицензия
+## License
 
-Проект распространяется под лицензией **[MIT](LICENSE)** (SPDX: `MIT`).
+This project is released under the **[MIT](LICENSE)** license (SPDX: `MIT`).
 
 Copyright (c) 2026 [Sergey Bezpalov](https://github.com/sbezpalov)
 
-Разрешено свободно использовать, копировать, изменять, распространять и продавать копии при сохранении текста copyright и самого текста лицензии. ПО предоставляется «как есть», без гарантий.
+You may freely use, copy, modify, distribute, and sell copies provided the copyright notice and license text are retained. Software is provided “as is”, without warranty.
 
-Полный текст: файл [LICENSE](LICENSE) в корне репозитория.
+Full text: [LICENSE](LICENSE) in the repository root.
 
-## Автор
+## Author
 
 [Sergey Bezpalov](https://github.com/sbezpalov)

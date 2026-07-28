@@ -1,6 +1,6 @@
 # Политика безопасности
 
-**Русский** · [English](SECURITY.md)
+[English](SECURITY.md) · **Русский**
 
 ## Поддерживаемые версии
 
@@ -15,7 +15,7 @@
 Сообщите приватно одним из способов:
 
 1. [GitHub Security Advisories](https://github.com/sbezpalov/dev-workstation-maintenance/security/advisories/new) (предпочтительно)
-2. Email мейнтейнеру из профиля репозитория / [Автор](README.md#автор)
+2. Email мейнтейнеру из профиля репозитория / [Автор](README.ru.md#автор)
 
 Укажите:
 

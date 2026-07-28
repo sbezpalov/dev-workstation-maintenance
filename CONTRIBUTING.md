@@ -1,12 +1,12 @@
 # Contributing
 
-[Русский](CONTRIBUTING.ru.md) · **English**
+**English** · [Русский](CONTRIBUTING.ru.md)
 
 Thanks for helping improve **Dev Workstation Maintenance**.
 
 ## Before you start
 
-1. Read [README.en.md](README.en.md) and [SECURITY.md](SECURITY.md)
+1. Read [README.md](README.md) and [SECURITY.md](SECURITY.md)
 2. Search existing issues / PRs to avoid duplicates
 3. For security issues, follow [SECURITY.md](SECURITY.md) — do **not** file a public issue
 
@@ -40,7 +40,7 @@ Describe the problem, the proposed flag/config change, and whether it fits the e
 
 1. Branch from the default branch
 2. Keep changes focused (one concern per PR)
-3. Update docs when behavior or flags change (`README.md`, `README.en.md`, and i18n strings in `lib/i18n-data.ps1` when user-facing text changes)
+3. Update docs when behavior or flags change (`README.md`, `README.ru.md`, and i18n strings in `lib/i18n-data.ps1` when user-facing text changes)
 4. Bump `VERSION` + `config/project.ini` `VERSION` and add a [CHANGELOG.md](CHANGELOG.md) entry for user-visible changes
 5. Fill in the PR template
 

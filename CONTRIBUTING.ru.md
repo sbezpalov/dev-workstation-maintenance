@@ -1,12 +1,12 @@
 # Участие в проекте
 
-**Русский** · [English](CONTRIBUTING.md)
+[English](CONTRIBUTING.md) · **Русский**
 
 Спасибо за вклад в **Dev Workstation Maintenance**.
 
 ## Перед стартом
 
-1. Прочитайте [README.md](README.md) и [SECURITY.ru.md](SECURITY.ru.md)
+1. Прочитайте [README.ru.md](README.ru.md) и [SECURITY.ru.md](SECURITY.ru.md)
 2. Проверьте существующие issue / PR
 3. Вопросы безопасности — только по [SECURITY.ru.md](SECURITY.ru.md), **без** публичного issue
 
@@ -40,7 +40,7 @@ copy config\secrets.env.example config\secrets.env
 
 1. Ветка от default branch
 2. Узкий scope (одна задача на PR)
-3. Обновляйте документацию при смене поведения (`README.md`, `README.en.md`, строки в `lib/i18n-data.ps1`)
+3. Обновляйте документацию при смене поведения (`README.md`, `README.ru.md`, строки в `lib/i18n-data.ps1`)
 4. Для пользовательских изменений — bump `VERSION` + `VERSION` в `config/project.ini` и запись в [CHANGELOG.md](CHANGELOG.md)
 5. Заполните PR template
 
