@@ -12,9 +12,11 @@ set "SCRIPT_DIR=%~dp0"
 set "CONFIG_FILE=%SCRIPT_DIR%config\packages.list"
 set "OPTIONAL_FILE=%SCRIPT_DIR%config\optional.ini"
 set "PROJECT_FILE=%SCRIPT_DIR%config\project.ini"
+set "VERSION_FILE=%SCRIPT_DIR%VERSION"
 set "LOG_DIR=%SCRIPT_DIR%logs"
 set "WINGET_SCOPE=machine"
 set "WINGET_SCOPE_ARGS="
+set "PROJECT_VERSION=1.0.0"
 set "TIMESTAMP="
 for /f "tokens=2 delims==" %%i in ('wmic os get localdatetime /value 2^>nul') do set "dt=%%i"
 if defined dt (
@@ -30,6 +32,11 @@ if not defined TIMESTAMP (
 )
 set "LOG_FILE=%LOG_DIR%\maintain_%TIMESTAMP%.log"
 
+if exist "%VERSION_FILE%" (
+    set /p PROJECT_VERSION=<"%VERSION_FILE%"
+)
+if not defined PROJECT_VERSION set "PROJECT_VERSION=1.0.0"
+
 set "SHOW_HELP=0"
 set "SKIP_NPM=0"
 set "SKIP_PIP=0"
@@ -41,6 +48,8 @@ set "INSTALL_ANTIGRAVITY=0"
 set "INSTALL_ANTIGRAVITY_CLI=0"
 set "INSTALL_CLAUDE_DESKTOP=0"
 set "INSTALL_CLAUDE_CODE=0"
+set "INSTALL_CHATGPT=0"
+set "INSTALL_CODEX_CLI=0"
 set "INSTALL_PERPLEXITY=0"
 set "INSTALL_PERPLEXITY_COMET=0"
 set "OPENCLAW_ONBOARD=0"
@@ -109,6 +118,14 @@ if /i "!ARG!"=="--with-claude-code" (
     set "INSTALL_CLAUDE_CODE=1"
     goto :continue_args
 )
+if /i "!ARG!"=="--with-chatgpt" (
+    set "INSTALL_CHATGPT=1"
+    goto :continue_args
+)
+if /i "!ARG!"=="--with-codex-cli" (
+    set "INSTALL_CODEX_CLI=1"
+    goto :continue_args
+)
 if /i "!ARG!"=="--with-perplexity" (
     set "INSTALL_PERPLEXITY=1"
     goto :continue_args
@@ -172,14 +189,16 @@ call "%SCRIPT_DIR%lib\i18n.cmd" init
 
 if "!SHOW_HELP!"=="1" goto :usage
 
+call :load_project_config
+
 call :log "============================================================"
 call :log "!I18N_maintain_started!"
+call :log "!I18N_maintain_version!"
 call :log "!I18N_maintain_log!"
 if "%DRY_RUN%"=="1" call :log "!I18N_maintain_dry_run!"
 call :log "============================================================"
 
 call :check_prerequisites || exit /b 1
-call :load_project_config
 call :load_optional_config
 call :init_winget_scope
 call :refresh_path
@@ -196,6 +215,8 @@ if "!INSTALL_ANTIGRAVITY!"=="1" set "NEED_OPTIONAL_APPS=1"
 if "!INSTALL_ANTIGRAVITY_CLI!"=="1" set "NEED_OPTIONAL_APPS=1"
 if "!INSTALL_CLAUDE_DESKTOP!"=="1" set "NEED_OPTIONAL_APPS=1"
 if "!INSTALL_CLAUDE_CODE!"=="1" set "NEED_OPTIONAL_APPS=1"
+if "!INSTALL_CHATGPT!"=="1" set "NEED_OPTIONAL_APPS=1"
+if "!INSTALL_CODEX_CLI!"=="1" set "NEED_OPTIONAL_APPS=1"
 if "!INSTALL_PERPLEXITY!"=="1" set "NEED_OPTIONAL_APPS=1"
 if "!INSTALL_PERPLEXITY_COMET!"=="1" set "NEED_OPTIONAL_APPS=1"
 if "!NEED_OPTIONAL!"=="1" call :run_optional_ai
@@ -227,6 +248,8 @@ echo !I18N_maintain_usage_opt_antigravity!
 echo !I18N_maintain_usage_opt_antigravity_cli!
 echo !I18N_maintain_usage_opt_claude!
 echo !I18N_maintain_usage_opt_claude_code!
+echo !I18N_maintain_usage_opt_chatgpt!
+echo !I18N_maintain_usage_opt_codex_cli!
 echo !I18N_maintain_usage_opt_perplexity!
 echo !I18N_maintain_usage_opt_perplexity_comet!
 echo !I18N_maintain_usage_opt_ai_apps!
@@ -270,6 +293,7 @@ for /f "usebackq eol=# tokens=1,* delims==" %%a in ("%PROJECT_FILE%") do (
     if defined KEY (
         if defined VAL set "VAL=!VAL: =!"
         if /i "!KEY!"=="WINGET_SCOPE" if not "!WINGET_SCOPE_CLI!"=="1" set "WINGET_SCOPE=!VAL!"
+        if /i "!KEY!"=="VERSION" if defined VAL set "PROJECT_VERSION=!VAL!"
     )
 )
 exit /b 0
@@ -304,6 +328,8 @@ for /f "usebackq eol=# tokens=1,* delims==" %%a in ("%OPTIONAL_FILE%") do (
         if /i "!KEY!"=="INSTALL_ANTIGRAVITY_CLI" if "!INSTALL_ANTIGRAVITY_CLI!"=="0" set "INSTALL_ANTIGRAVITY_CLI=!VAL!"
         if /i "!KEY!"=="INSTALL_CLAUDE_DESKTOP" if "!INSTALL_CLAUDE_DESKTOP!"=="0" set "INSTALL_CLAUDE_DESKTOP=!VAL!"
         if /i "!KEY!"=="INSTALL_CLAUDE_CODE" if "!INSTALL_CLAUDE_CODE!"=="0" set "INSTALL_CLAUDE_CODE=!VAL!"
+        if /i "!KEY!"=="INSTALL_CHATGPT" if "!INSTALL_CHATGPT!"=="0" set "INSTALL_CHATGPT=!VAL!"
+        if /i "!KEY!"=="INSTALL_CODEX_CLI" if "!INSTALL_CODEX_CLI!"=="0" set "INSTALL_CODEX_CLI=!VAL!"
         if /i "!KEY!"=="INSTALL_PERPLEXITY" if "!INSTALL_PERPLEXITY!"=="0" set "INSTALL_PERPLEXITY=!VAL!"
         if /i "!KEY!"=="INSTALL_PERPLEXITY_COMET" if "!INSTALL_PERPLEXITY_COMET!"=="0" set "INSTALL_PERPLEXITY_COMET=!VAL!"
         if /i "!KEY!"=="OPENCLAW_ONBOARD" if "!OPENCLAW_ONBOARD!"=="0" set "OPENCLAW_ONBOARD=!VAL!"
@@ -331,6 +357,8 @@ set "INSTALL_ANTIGRAVITY=1"
 set "INSTALL_ANTIGRAVITY_CLI=1"
 set "INSTALL_CLAUDE_DESKTOP=1"
 set "INSTALL_CLAUDE_CODE=1"
+set "INSTALL_CHATGPT=1"
+set "INSTALL_CODEX_CLI=1"
 set "INSTALL_PERPLEXITY=1"
 set "INSTALL_PERPLEXITY_COMET=1"
 exit /b 0

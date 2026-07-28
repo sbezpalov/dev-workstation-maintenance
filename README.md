@@ -1,14 +1,19 @@
 # Dev Workstation Maintenance
 
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](VERSION)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+**Русский** · [English](README.en.md)
 
 Автоматическое обслуживание рабочего места разработчика на **Windows 11**.
 
 Скрипт обновляет инструменты через `winget`, поддерживает **Python/pip** и **npm**-экосистемы, опционально устанавливает **OpenClaw** и настраивает **OpenRouter**, очищает диск от кэшей и временных файлов. Основной сценарий обслуживания работает на **cmd.exe**; модуль очистки диска использует **PowerShell 5+** (встроен в Windows).
 
-Python нужен для IDE и AI-инструментов (Cursor, Antigravity, Claude Code, Perplexity, MCP-серверы, расширения VS Code). Детект учитывает **Python Install Manager** (`py`) и игнорирует Store-заглушку в `WindowsApps`.
+Python нужен для IDE и AI-инструментов (Cursor, Antigravity, Claude Code, ChatGPT desktop, Codex CLI, Perplexity, MCP-серверы, расширения VS Code). Детект учитывает **Python Install Manager** (`py`) и игнорирует Store-заглушку в `WindowsApps`.
 
 Интерфейс скриптов локализован: **русский** и **английский** (`ru` / `en`), с автоопределением по языку системы.
+
+Текущая версия проекта: **1.0.0** (файл [`VERSION`](VERSION), также `VERSION` в `config/project.ini`).
 
 Лицензия: **MIT** — см. [LICENSE](LICENSE).
 
@@ -22,7 +27,7 @@ Python нужен для IDE и AI-инструментов (Cursor, Antigravity
 - Обновление pip и устаревших pip-пакетов + `pip check` (через `py -3` или реальный `python`)
 - Обновление npm и глобальных npm-пакетов + `npm doctor`
 - Health-check: Python, pip, Node, npm, Git, Go, PHP, PowerShell, gh, VS Code, OpenClaw
-- Опционально: AI-приложения через winget (Cursor, Antigravity, Claude, Perplexity и IDE/CLI варианты)
+- Опционально: AI-приложения через winget (Cursor, Antigravity, Claude, ChatGPT, Codex CLI, Perplexity и IDE/CLI варианты)
 - Опционально: OpenClaw (официальный `install.ps1` или npm)
 - Опционально: OpenRouter (API-ключ, env vars, CLI)
 - Журналы в `/logs/` (каталог в `.gitignore`, в публичный репозиторий не попадает)
@@ -90,6 +95,8 @@ maintain-dev-workstation.cmd [options]
 | `--with-antigravity-cli` | Установить / обновить Antigravity CLI |
 | `--with-claude` | Установить / обновить Claude (desktop) |
 | `--with-claude-code` | Установить / обновить Claude Code CLI |
+| `--with-chatgpt` | Установить / обновить ChatGPT desktop (Microsoft Store; внутри уже есть Codex) |
+| `--with-codex-cli` | Установить / обновить Codex CLI (отдельный терминальный агент) |
 | `--with-perplexity` | Установить / обновить Perplexity |
 | `--with-perplexity-comet` | Установить / обновить Perplexity Comet |
 | `--with-ai-apps` | Все опциональные AI-приложения выше |
@@ -173,6 +180,9 @@ clean_disk.cmd --language en -DryRun
 # UI language: auto | ru | en
 LANGUAGE=auto
 
+# SemVer (also in root VERSION file)
+VERSION=1.0.0
+
 # winget: machine | user | auto
 # machine = на компьютер / всех пользователей (по умолчанию; обычно нужен Administrator)
 WINGET_SCOPE=machine
@@ -219,6 +229,8 @@ INSTALL_ANTIGRAVITY=0
 INSTALL_ANTIGRAVITY_CLI=0
 INSTALL_CLAUDE_DESKTOP=0
 INSTALL_CLAUDE_CODE=0
+INSTALL_CHATGPT=0
+INSTALL_CODEX_CLI=0
 INSTALL_PERPLEXITY=0
 INSTALL_PERPLEXITY_COMET=0
 ```
@@ -230,9 +242,13 @@ INSTALL_PERPLEXITY_COMET=0
 ```
 INSTALL_CURSOR|Anysphere.Cursor|Cursor|cursor|cursor --version
 INSTALL_CLAUDE_CODE|Anthropic.ClaudeCode|Claude Code|claude|claude --version
+INSTALL_CHATGPT|9PLM9XGG6VKS|ChatGPT (incl. Codex)|||
+INSTALL_CODEX_CLI|OpenAI.Codex|Codex CLI|codex|codex --version
 ```
 
-Флаги из `optional.ini` или CLI (`--with-cursor` и т.д.) включают установку / обновление соответствующей строки.
+> **ChatGPT vs Codex:** desktop ChatGPT из Store — единое приложение OpenAI (`OpenAI.Codex_*`), в нём уже есть агент Codex. Отдельно ставится только **Codex CLI** (`--with-codex-cli`).
+
+Флаги из `optional.ini` или CLI (`--with-cursor`, `--with-chatgpt`, `--with-codex-cli` и т.д.) включают установку / обновление соответствующей строки.
 
 ### `config/cleanup.ini`
 
@@ -293,14 +309,16 @@ register-scheduled-task.cmd
 ```
 dev-workstation-maintenance/
 ├── LICENSE                        # MIT
-├── README.md
+├── VERSION                        # SemVer проекта (сейчас 1.0.0)
+├── README.md                      # Русский
+├── README.en.md                   # English
 ├── maintain-dev-workstation.cmd   # Главный скрипт обслуживания
 ├── clean_disk.cmd                 # Лаунчер очистки диска
 ├── clean_disk.ps1                 # Оркестратор очистки (PowerShell)
 ├── install-openclaw.cmd           # Официальный установщик OpenClaw
 ├── register-scheduled-task.cmd    # Регистрация задачи в планировщике
 ├── config/
-│   ├── project.ini                # Общие настройки (язык)
+│   ├── project.ini                # Общие настройки (язык, версия, winget scope)
 │   ├── packages.list              # Пакеты winget (базовый dev-стек)
 │   ├── optional.ini               # Флаги опциональных сервисов
 │   ├── optional-apps.list         # Опциональные AI IDE / desktop apps
@@ -312,7 +330,7 @@ dev-workstation-maintenance/
 │   ├── i18n-data.ps1              # Строки ru / en
 │   ├── i18n-export.ps1            # Экспорт I18N_* для CMD (+ apply-скрипт)
 │   ├── i18n.cmd                   # Загрузчик локализации для CMD
-│   ├── optional-apps.cmd          # Cursor, Antigravity, Claude, Perplexity
+│   ├── optional-apps.cmd          # Cursor, Antigravity, Claude, ChatGPT, Codex CLI, Perplexity
 │   ├── optional-ai.cmd            # OpenClaw / OpenRouter
 │   ├── cleanup-common.ps1         # Общие функции очистки
 │   ├── cleanup-user.ps1           # Очистка профилей пользователей

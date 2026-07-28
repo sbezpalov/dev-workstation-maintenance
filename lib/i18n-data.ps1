@@ -83,6 +83,7 @@
         'target.windows_disk_cleanup' = 'Очистка диска Windows'
 
         'maintain.started'                    = ' Обслуживание рабочей станции разработчика запущено'
+        'maintain.version'                    = ' Версия: !PROJECT_VERSION!'
         'maintain.log'                        = ' Журнал: !LOG_FILE!'
         'maintain.dry_run'                    = ' РЕЖИМ: dry-run (без изменений)'
         'maintain.finished'                   = ' Обслуживание завершено'
@@ -148,6 +149,8 @@
         'maintain.usage.opt_antigravity_cli'  = '  --with-antigravity-cli       Установить или обновить Antigravity CLI'
         'maintain.usage.opt_claude'           = '  --with-claude                Установить или обновить Claude desktop'
         'maintain.usage.opt_claude_code'      = '  --with-claude-code           Установить или обновить Claude Code CLI'
+        'maintain.usage.opt_chatgpt'          = '  --with-chatgpt               Установить или обновить ChatGPT desktop (Store; внутри есть Codex)'
+        'maintain.usage.opt_codex_cli'        = '  --with-codex-cli             Установить или обновить Codex CLI (терминал)'
         'maintain.usage.opt_perplexity'       = '  --with-perplexity            Установить или обновить Perplexity'
         'maintain.usage.opt_perplexity_comet' = '  --with-perplexity-comet      Установить или обновить Perplexity Comet'
         'maintain.usage.opt_ai_apps'          = '  --with-ai-apps               Установить все опциональные AI-приложения выше'
@@ -292,6 +295,7 @@
         'target.windows_disk_cleanup' = 'Windows Disk Cleanup'
 
         'maintain.started'                    = ' Dev Workstation Maintenance started'
+        'maintain.version'                    = ' Version: !PROJECT_VERSION!'
         'maintain.log'                        = ' Log: !LOG_FILE!'
         'maintain.dry_run'                    = ' MODE: dry-run (no changes)'
         'maintain.finished'                   = ' Maintenance finished'
@@ -357,6 +361,8 @@
         'maintain.usage.opt_antigravity_cli'  = '  --with-antigravity-cli       Install or upgrade Antigravity CLI'
         'maintain.usage.opt_claude'           = '  --with-claude                Install or upgrade Claude desktop app'
         'maintain.usage.opt_claude_code'      = '  --with-claude-code           Install or upgrade Claude Code CLI'
+        'maintain.usage.opt_chatgpt'          = '  --with-chatgpt               Install or upgrade ChatGPT desktop (Store; includes Codex)'
+        'maintain.usage.opt_codex_cli'        = '  --with-codex-cli             Install or upgrade Codex CLI (terminal)'
         'maintain.usage.opt_perplexity'       = '  --with-perplexity            Install or upgrade Perplexity app'
         'maintain.usage.opt_perplexity_comet' = '  --with-perplexity-comet      Install or upgrade Perplexity Comet browser'
         'maintain.usage.opt_ai_apps'          = '  --with-ai-apps               Install all optional AI apps above'
