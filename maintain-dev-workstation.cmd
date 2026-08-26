@@ -9,6 +9,7 @@ chcp 65001 >nul 2>&1
 :: ============================================================================
 
 set "SCRIPT_DIR=%~dp0"
+set "SESSION_BASE_PATH=!PATH!"
 set "CONFIG_FILE=%SCRIPT_DIR%config\packages.list"
 set "OPTIONAL_FILE=%SCRIPT_DIR%config\optional.ini"
 set "PROJECT_FILE=%SCRIPT_DIR%config\project.ini"
@@ -38,9 +39,13 @@ if exist "%VERSION_FILE%" (
 if not defined PROJECT_VERSION set "PROJECT_VERSION=1.0.0"
 
 set "SHOW_HELP=0"
+set "DRY_RUN=0"
 set "SKIP_NPM=0"
 set "SKIP_PIP=0"
 set "SKIP_WINGET=0"
+set "PKG_OK=0"
+set "PKG_FAIL=0"
+set "PKG_SKIP=0"
 set "INSTALL_OPENCLAW=0"
 set "INSTALL_OPENROUTER=0"
 set "INSTALL_CURSOR=0"
@@ -147,8 +152,12 @@ if /i "!ARG!"=="--openclaw-npm" (
     goto :continue_args
 )
 if /i "!ARG!"=="--openrouter-key" (
+    if "%~2"=="" (
+        set "ARG_ERROR=--openrouter-key requires a value"
+        goto :args_done
+    )
     shift
-    call set "OPENROUTER_API_KEY=%%~1"
+    set "OPENROUTER_API_KEY=%~2"
     set "INSTALL_OPENROUTER=1"
     goto :continue_args
 )
@@ -158,8 +167,12 @@ if /i "!ARG:~0,17!"=="--openrouter-key=" (
     goto :continue_args
 )
 if /i "!ARG!"=="--language" (
+    if "%~2"=="" (
+        set "ARG_ERROR=--language requires a value"
+        goto :args_done
+    )
     shift
-    call set "PROJECT_LANGUAGE=%%~1"
+    set "PROJECT_LANGUAGE=%~2"
     goto :continue_args
 )
 if /i "!ARG:~0,11!"=="--language=" (
@@ -167,8 +180,12 @@ if /i "!ARG:~0,11!"=="--language=" (
     goto :continue_args
 )
 if /i "!ARG!"=="--scope" (
+    if "%~2"=="" (
+        set "ARG_ERROR=--scope requires a value"
+        goto :args_done
+    )
     shift
-    call set "WINGET_SCOPE=%%~1"
+    set "WINGET_SCOPE=%~2"
     set "WINGET_SCOPE_CLI=1"
     goto :continue_args
 )
@@ -178,6 +195,9 @@ if /i "!ARG:~0,8!"=="--scope=" (
     goto :continue_args
 )
 
+set "ARG_ERROR=Unknown option: !ARG!"
+goto :args_done
+
 :continue_args
 shift
 goto :parse_args
@@ -186,6 +206,21 @@ goto :parse_args
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
 
 call "%SCRIPT_DIR%lib\i18n.cmd" init
+if !ERRORLEVEL! neq 0 (
+    echo [error] Failed to initialize localization.
+    exit /b 1
+)
+
+if defined PROJECT_LANGUAGE (
+    set "LANGUAGE_VALID=0"
+    for %%L in (en ru auto) do if /i "!PROJECT_LANGUAGE!"=="%%L" set "LANGUAGE_VALID=1"
+    if "!LANGUAGE_VALID!"=="0" set "ARG_ERROR=Invalid language: !PROJECT_LANGUAGE! (expected en, ru, or auto)"
+)
+
+if defined ARG_ERROR (
+    echo [error] !ARG_ERROR!
+    exit /b 2
+)
 
 if "!SHOW_HELP!"=="1" goto :usage
 
@@ -198,27 +233,15 @@ call :log "!I18N_maintain_log!"
 if "%DRY_RUN%"=="1" call :log "!I18N_maintain_dry_run!"
 call :log "============================================================"
 
-call :check_prerequisites || exit /b 1
 call :load_optional_config
-call :init_winget_scope
+call :compute_optional_requirements
+call :init_winget_scope || exit /b 2
+call :check_prerequisites || exit /b 1
 call :refresh_path
 
 if "%SKIP_WINGET%"=="0" call :run_winget_maintenance
 if "%SKIP_PIP%"=="0" call :run_pip_maintenance
 if "%SKIP_NPM%"=="0" call :run_npm_maintenance
-set "NEED_OPTIONAL=0"
-if "!INSTALL_OPENCLAW!"=="1" set "NEED_OPTIONAL=1"
-if "!INSTALL_OPENROUTER!"=="1" set "NEED_OPTIONAL=1"
-set "NEED_OPTIONAL_APPS=0"
-if "!INSTALL_CURSOR!"=="1" set "NEED_OPTIONAL_APPS=1"
-if "!INSTALL_ANTIGRAVITY!"=="1" set "NEED_OPTIONAL_APPS=1"
-if "!INSTALL_ANTIGRAVITY_CLI!"=="1" set "NEED_OPTIONAL_APPS=1"
-if "!INSTALL_CLAUDE_DESKTOP!"=="1" set "NEED_OPTIONAL_APPS=1"
-if "!INSTALL_CLAUDE_CODE!"=="1" set "NEED_OPTIONAL_APPS=1"
-if "!INSTALL_CHATGPT!"=="1" set "NEED_OPTIONAL_APPS=1"
-if "!INSTALL_CODEX_CLI!"=="1" set "NEED_OPTIONAL_APPS=1"
-if "!INSTALL_PERPLEXITY!"=="1" set "NEED_OPTIONAL_APPS=1"
-if "!INSTALL_PERPLEXITY_COMET!"=="1" set "NEED_OPTIONAL_APPS=1"
 if "!NEED_OPTIONAL!"=="1" call :run_optional_ai
 if "!NEED_OPTIONAL_APPS!"=="1" call :run_optional_apps
 call :run_health_checks
@@ -266,6 +289,12 @@ exit /b 0
 :check_prerequisites
 call :log "!I18N_maintain_check_prereq!"
 
+if "!SKIP_WINGET!"=="0" goto :check_winget_required
+if "!NEED_OPTIONAL_APPS!"=="1" goto :check_winget_required
+call :log "!I18N_maintain_winget_prereq_skipped!"
+goto :check_config_required
+
+:check_winget_required
 where winget >nul 2>&1
 if !ERRORLEVEL! neq 0 (
     call :log "!I18N_maintain_winget_missing!"
@@ -276,6 +305,8 @@ if !ERRORLEVEL! neq 0 (
 for /f "delims=" %%v in ('winget --version 2^>nul') do set "WINGET_VER=%%v"
 call :log "[ok] winget version: !WINGET_VER!"
 
+:check_config_required
+if "!SKIP_WINGET!"=="1" exit /b 0
 if not exist "%CONFIG_FILE%" (
     call :log "!I18N_maintain_config_missing!"
     exit /b 1
@@ -301,6 +332,12 @@ exit /b 0
 :: ---------------------------------------------------------------------------
 :init_winget_scope
 set "WINGET_SCOPE_ARGS="
+set "SCOPE_VALID=0"
+for %%S in (machine user auto) do if /i "!WINGET_SCOPE!"=="%%S" set "SCOPE_VALID=1"
+if "!SCOPE_VALID!"=="0" (
+    call :log "!I18N_maintain_winget_scope_invalid!"
+    exit /b 2
+)
 if /i "!WINGET_SCOPE!"=="machine" set "WINGET_SCOPE_ARGS=--scope machine"
 if /i "!WINGET_SCOPE!"=="user" set "WINGET_SCOPE_ARGS=--scope user"
 if /i "!WINGET_SCOPE!"=="auto" set "WINGET_SCOPE=auto"
@@ -364,17 +401,37 @@ set "INSTALL_PERPLEXITY_COMET=1"
 exit /b 0
 
 :: ---------------------------------------------------------------------------
+:compute_optional_requirements
+set "NEED_OPTIONAL=0"
+if "!INSTALL_OPENCLAW!"=="1" set "NEED_OPTIONAL=1"
+if "!INSTALL_OPENROUTER!"=="1" set "NEED_OPTIONAL=1"
+set "NEED_OPTIONAL_APPS=0"
+if "!INSTALL_CURSOR!"=="1" set "NEED_OPTIONAL_APPS=1"
+if "!INSTALL_ANTIGRAVITY!"=="1" set "NEED_OPTIONAL_APPS=1"
+if "!INSTALL_ANTIGRAVITY_CLI!"=="1" set "NEED_OPTIONAL_APPS=1"
+if "!INSTALL_CLAUDE_DESKTOP!"=="1" set "NEED_OPTIONAL_APPS=1"
+if "!INSTALL_CLAUDE_CODE!"=="1" set "NEED_OPTIONAL_APPS=1"
+if "!INSTALL_CHATGPT!"=="1" set "NEED_OPTIONAL_APPS=1"
+if "!INSTALL_CODEX_CLI!"=="1" set "NEED_OPTIONAL_APPS=1"
+if "!INSTALL_PERPLEXITY!"=="1" set "NEED_OPTIONAL_APPS=1"
+if "!INSTALL_PERPLEXITY_COMET!"=="1" set "NEED_OPTIONAL_APPS=1"
+exit /b 0
+
+:: ---------------------------------------------------------------------------
 :refresh_path
 call :log "!I18N_maintain_path_refresh!"
 
 set "SYSPATH="
 set "USERPATH="
+set "SESSIONPATH=!SESSION_BASE_PATH!"
 
 for /f "tokens=2*" %%a in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v Path 2^>nul') do set "SYSPATH=%%b"
 for /f "tokens=2*" %%a in ('reg query "HKCU\Environment" /v Path 2^>nul') do set "USERPATH=%%b"
 
-if defined SYSPATH set "PATH=!SYSPATH!"
-if defined USERPATH set "PATH=!PATH!;!USERPATH!"
+set "MERGED_PATH=!SYSPATH!"
+if defined USERPATH set "MERGED_PATH=!MERGED_PATH!;!USERPATH!"
+if defined SESSIONPATH set "MERGED_PATH=!MERGED_PATH!;!SESSIONPATH!"
+if defined MERGED_PATH set "PATH=!MERGED_PATH!"
 call set "PATH=!PATH!"
 exit /b 0
 
@@ -452,17 +509,17 @@ exit /b 0
 set "WG_ACTION=%~1"
 set "WG_ID=%~2"
 if /i "%WG_ACTION%"=="upgrade" (
-    winget upgrade --id "%WG_ID%" !WINGET_SCOPE_ARGS! --accept-source-agreements --accept-package-agreements --disable-interactivity >> "%LOG_FILE%" 2>&1
+    winget upgrade --id "%WG_ID%" --exact !WINGET_SCOPE_ARGS! --accept-source-agreements --accept-package-agreements --disable-interactivity >> "%LOG_FILE%" 2>&1
 ) else (
-    winget install --id "%WG_ID%" !WINGET_SCOPE_ARGS! --accept-source-agreements --accept-package-agreements --disable-interactivity >> "%LOG_FILE%" 2>&1
+    winget install --id "%WG_ID%" --exact !WINGET_SCOPE_ARGS! --accept-source-agreements --accept-package-agreements --disable-interactivity >> "%LOG_FILE%" 2>&1
 )
 if !ERRORLEVEL! == 0 exit /b 0
 if "!WINGET_SCOPE_ARGS!"=="" exit /b 1
 call :log "!I18N_maintain_winget_scope_fallback!"
 if /i "%WG_ACTION%"=="upgrade" (
-    winget upgrade --id "%WG_ID%" --accept-source-agreements --accept-package-agreements --disable-interactivity >> "%LOG_FILE%" 2>&1
+    winget upgrade --id "%WG_ID%" --exact --accept-source-agreements --accept-package-agreements --disable-interactivity >> "%LOG_FILE%" 2>&1
 ) else (
-    winget install --id "%WG_ID%" --accept-source-agreements --accept-package-agreements --disable-interactivity >> "%LOG_FILE%" 2>&1
+    winget install --id "%WG_ID%" --exact --accept-source-agreements --accept-package-agreements --disable-interactivity >> "%LOG_FILE%" 2>&1
 )
 exit /b !ERRORLEVEL!
 
@@ -502,8 +559,19 @@ if !ERRORLEVEL! neq 0 (
     exit /b 0
 )
 
+where npm.cmd >nul 2>&1
+if !ERRORLEVEL! neq 0 (
+    call :log "!I18N_maintain_npm_cli_broken!"
+    exit /b 0
+)
+call npm.cmd --version >nul 2>&1
+if !ERRORLEVEL! neq 0 (
+    call :log "!I18N_maintain_npm_cli_broken!"
+    exit /b 0
+)
+
 for /f "delims=" %%v in ('node --version 2^>nul') do call :log "[info] node %%v"
-for /f "delims=" %%v in ('npm --version 2^>nul') do call :log "[info] npm %%v"
+for /f "delims=" %%v in ('npm.cmd --version 2^>nul') do call :log "[info] npm %%v"
 
 if "%DRY_RUN%"=="1" (
     call :log "!I18N_maintain_npm_dry1!"
@@ -513,13 +581,13 @@ if "%DRY_RUN%"=="1" (
 )
 
 call :log "!I18N_maintain_npm_update_self!"
-call npm install -g npm@latest >> "%LOG_FILE%" 2>&1
+call npm.cmd install -g npm@latest >> "%LOG_FILE%" 2>&1
 
 call :log "!I18N_maintain_npm_update_global!"
-call npm update -g >> "%LOG_FILE%" 2>&1
+call npm.cmd update -g >> "%LOG_FILE%" 2>&1
 
 call :log "!I18N_maintain_npm_doctor!"
-call npm doctor >> "%LOG_FILE%" 2>&1
+call npm.cmd doctor >> "%LOG_FILE%" 2>&1
 if !ERRORLEVEL! neq 0 (
     call :log "!I18N_maintain_npm_doctor_warn!"
 ) else (
@@ -665,14 +733,17 @@ exit /b 0
 :report_tool
 set "TOOL=%~1"
 set "CMD=%~2"
+set "TOOL_REPORTED=0"
 where %TOOL% >nul 2>&1
 if !ERRORLEVEL! neq 0 (
     call :log "!I18N_maintain_tool_not_installed!"
 ) else (
     for /f "delims=" %%o in ('%CMD% 2^>nul') do (
+        set "TOOL_REPORTED=1"
         call :log "  %TOOL%: %%o"
         goto :report_done
     )
+    if "!TOOL_REPORTED!"=="0" call :log "!I18N_maintain_tool_failed!"
 )
 :report_done
 exit /b 0

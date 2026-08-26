@@ -3,11 +3,11 @@
 # CLI_TOOL/CMD empty = desktop-only app (health via winget list)
 #
 INSTALL_CURSOR|Anysphere.Cursor|Cursor|cursor|cursor --version
-INSTALL_ANTIGRAVITY|Google.Antigravity|Antigravity|||
-INSTALL_ANTIGRAVITY_CLI|Google.AntigravityCLI|Antigravity CLI|||
-INSTALL_CLAUDE_DESKTOP|Anthropic.Claude|Claude|||
+INSTALL_ANTIGRAVITY|Google.Antigravity|Antigravity||
+INSTALL_ANTIGRAVITY_CLI|Google.AntigravityCLI|Antigravity CLI||
+INSTALL_CLAUDE_DESKTOP|Anthropic.Claude|Claude||
 INSTALL_CLAUDE_CODE|Anthropic.ClaudeCode|Claude Code|claude|claude --version
-INSTALL_CHATGPT|9PLM9XGG6VKS|ChatGPT (incl. Codex)|||
+INSTALL_CHATGPT|9PLM9XGG6VKS|ChatGPT (incl. Codex)||
 INSTALL_CODEX_CLI|OpenAI.Codex|Codex CLI|codex|codex --version
-INSTALL_PERPLEXITY|Perplexity.Perplexity|Perplexity|||
-INSTALL_PERPLEXITY_COMET|Perplexity.Comet|Perplexity Comet|||
+INSTALL_PERPLEXITY|Perplexity.Perplexity|Perplexity||
+INSTALL_PERPLEXITY_COMET|Perplexity.Comet|Perplexity Comet||

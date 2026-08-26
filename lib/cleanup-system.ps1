@@ -8,6 +8,10 @@ function Invoke-SystemPathCleanup {
 
     foreach ($target in $targets) {
         $path = Expand-SystemPath -PathTemplate $target.Path
+        if (-not (Test-PathWithinRoot -Path $path -Root $env:SystemRoot)) {
+            Write-CleanupLog (L 'skip.unsafe_path' $path)
+            continue
+        }
         $freed = Clear-FolderSafely -Path $path -Label $target.Name
         Add-CleanupStat -Category 'system' -Name $target.Name -FreedBytes $freed
     }
@@ -34,12 +38,12 @@ function Invoke-WindowsDiskCleanup {
         return
     }
 
-    $spaceBefore = (Get-PSDrive -Name $env:SystemDrive.TrimEnd(':')).Free
+    $spaceBefore = Get-SystemDriveFreeBytes
 
     $processArgs = @("/sagerun:$CleanmgrSageset", "/d", $drive)
     Start-Process -FilePath $cleanmgr -ArgumentList $processArgs -Wait -NoNewWindow -ErrorAction SilentlyContinue | Out-Null
 
-    $spaceAfter = (Get-PSDrive -Name $env:SystemDrive.TrimEnd(':')).Free
+    $spaceAfter = Get-SystemDriveFreeBytes
     $freed = [math]::Max(0, $spaceAfter - $spaceBefore)
     $cleanmgrName = Get-CleanupTargetName -NameKey 'windows_disk_cleanup'
     if ($freed -gt 0) {

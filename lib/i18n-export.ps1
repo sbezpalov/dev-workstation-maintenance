@@ -3,7 +3,8 @@ param(
     [string]$ScriptDir,
     [string]$CliOverride = '',
     [string]$OutFile = '',
-    [string]$ApplyFile = ''
+    [string]$ApplyFile = '',
+    [string]$ApplyDirectory = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -27,6 +28,10 @@ foreach ($key in ($table.Keys | Sort-Object)) {
 
 $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 
+if ($ApplyDirectory -and -not $ApplyFile) {
+    $ApplyFile = Join-Path $ApplyDirectory ("proj_i18n_apply_{0}.cmd" -f [guid]::NewGuid().ToString('N'))
+}
+
 if ($OutFile) {
     $exportLines = foreach ($k in $pairs.Keys) { "$k=$($pairs[$k])" }
     [System.IO.File]::WriteAllText($OutFile, ($exportLines -join "`r`n"), $utf8NoBom)
@@ -40,6 +45,7 @@ if ($ApplyFile) {
         [void]$apply.Add(('set "{0}={1}"' -f $k, $v))
     }
     [System.IO.File]::WriteAllText($ApplyFile, ($apply -join "`r`n"), $utf8NoBom)
+    if ($ApplyDirectory) { Write-Output $ApplyFile }
 }
 
 if (-not $OutFile -and -not $ApplyFile) {

@@ -31,6 +31,58 @@ function Format-SizeMB {
     return [math]::Round($Bytes / 1MB, 2)
 }
 
+function Get-SystemDriveFreeBytes {
+    try {
+        $drive = New-Object System.IO.DriveInfo $env:SystemDrive
+        return [long]$drive.AvailableFreeSpace
+    } catch {
+        $driveName = $env:SystemDrive.TrimEnd(':')
+        return [long](Get-PSDrive -Name $driveName -ErrorAction Stop).Free
+    }
+}
+
+function Test-PathWithinRoot {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+        [Parameter(Mandatory = $true)]
+        [string]$Root
+    )
+
+    try {
+        $fullPath = [System.IO.Path]::GetFullPath($Path).TrimEnd('\', '/')
+        $fullRoot = [System.IO.Path]::GetFullPath($Root).TrimEnd('\', '/')
+        $rootPrefix = $fullRoot + [System.IO.Path]::DirectorySeparatorChar
+        return $fullPath.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)
+    } catch {
+        return $false
+    }
+}
+
+function Test-PathHasReparsePoint {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    try {
+        $current = [System.IO.Path]::GetFullPath($Path).TrimEnd('\', '/')
+        while ($current) {
+            if (Test-Path -LiteralPath $current -ErrorAction SilentlyContinue) {
+                $item = Get-Item -LiteralPath $current -Force -ErrorAction Stop
+                if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+                    return $true
+                }
+            }
+
+            $parent = [System.IO.Path]::GetDirectoryName($current)
+            if (-not $parent -or $parent -eq $current) { break }
+            $current = $parent.TrimEnd('\', '/')
+        }
+    } catch {
+        return $true
+    }
+
+    return $false
+}
+
 function Test-TierIncluded {
     param([string]$MinTier)
 
@@ -55,11 +107,25 @@ function Get-FolderSizeBytes {
         return 0
     }
 
-    $sum = (Get-ChildItem -LiteralPath $Path -Recurse -Force -File -ErrorAction SilentlyContinue |
-        Measure-Object -Property Length -Sum -ErrorAction SilentlyContinue).Sum
+    [long]$sum = 0
+    $pending = New-Object 'System.Collections.Generic.Stack[string]'
+    $pending.Push($Path)
 
-    if ($null -eq $sum) { return 0 }
-    return [long]$sum
+    while ($pending.Count -gt 0) {
+        $current = $pending.Pop()
+        Get-ChildItem -LiteralPath $current -Force -ErrorAction SilentlyContinue | ForEach-Object {
+            if (($_.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+                return
+            }
+            if ($_.PSIsContainer) {
+                $pending.Push($_.FullName)
+            } else {
+                $sum += $_.Length
+            }
+        }
+    }
+
+    return $sum
 }
 
 function Resolve-UserCleanupPaths {
@@ -69,7 +135,12 @@ function Resolve-UserCleanupPaths {
     )
 
     if ($PathTemplate -notmatch '\*') {
-        return @(Join-Path -Path $UserHome -ChildPath $PathTemplate)
+        $candidate = Join-Path -Path $UserHome -ChildPath $PathTemplate
+        if (Test-PathWithinRoot -Path $candidate -Root $UserHome) {
+            return @($candidate)
+        }
+        Write-CleanupLog (L 'skip.unsafe_path' $candidate)
+        return @()
     }
 
     $starIndex = $PathTemplate.IndexOf('*')
@@ -85,6 +156,10 @@ function Resolve-UserCleanupPaths {
     $namePrefix = $leftPart.Substring($lastSlash + 1)
 
     $parentPath = Join-Path -Path $UserHome -ChildPath $parentRel
+    if (-not (Test-PathWithinRoot -Path $parentPath -Root $UserHome)) {
+        Write-CleanupLog (L 'skip.unsafe_path' $parentPath)
+        return @()
+    }
     if (-not (Test-Path -LiteralPath $parentPath -ErrorAction SilentlyContinue)) {
         return @()
     }
@@ -94,9 +169,14 @@ function Resolve-UserCleanupPaths {
         Where-Object { $_.Name -like "${namePrefix}*" } |
         ForEach-Object {
             if ($rightPart) {
-                $resolved += Join-Path -Path $_.FullName -ChildPath $rightPart
+                $candidate = Join-Path -Path $_.FullName -ChildPath $rightPart
             } else {
-                $resolved += $_.FullName
+                $candidate = $_.FullName
+            }
+            if (Test-PathWithinRoot -Path $candidate -Root $UserHome) {
+                $resolved += $candidate
+            } else {
+                Write-CleanupLog (L 'skip.unsafe_path' $candidate)
             }
         }
 
@@ -114,6 +194,11 @@ function Clear-FolderSafely {
         return 0
     }
 
+    if (Test-PathHasReparsePoint -Path $Path) {
+        Write-CleanupLog (L 'skip.reparse_point' $Path)
+        return 0
+    }
+
     $sizeBefore = Get-FolderSizeBytes -Path $Path
     $sizeLabel = Format-SizeMB $sizeBefore
 
@@ -124,6 +209,10 @@ function Clear-FolderSafely {
 
     Write-CleanupLog (L 'clean.folder' $Label $Path $sizeLabel)
     Get-ChildItem -LiteralPath $Path -Force -ErrorAction SilentlyContinue | ForEach-Object {
+        if (($_.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+            Write-CleanupLog (L 'skip.reparse_point' $_.FullName)
+            return
+        }
         try {
             Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction Stop
         } catch {

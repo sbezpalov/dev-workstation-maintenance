@@ -49,7 +49,7 @@ License: **MIT** — see [LICENSE](LICENSE).
 
 - Languages: `en` (default), `ru`, `auto` (follow Windows UI language)
 - Default setting: `LANGUAGE=en` in `config/project.ini`
-- CLI override: `--language en|ru` (CMD) or `-Language en|ru` (PowerShell)
+- CLI override: `--language en|ru|auto` (CMD) or `-Language en|ru|auto` (PowerShell)
 - Localized user-facing messages: maintenance, OpenClaw, OpenRouter, optional apps, disk cleanup, scheduler
 
 ## Requirements
@@ -107,7 +107,7 @@ maintain-dev-workstation.cmd [options]
 | `--openclaw-npm` | OpenClaw via npm instead of install.ps1 |
 | `--with-openrouter` | Configure OpenRouter + CLI |
 | `--openrouter-key KEY` | OpenRouter API key (`sk-or-v1-...`) |
-| `--language en\|ru` | UI language (default: `en`) |
+| `--language en\|ru\|auto` | UI language (default: `en`) |
 | `--scope machine\|user\|auto` | winget scope: machine / user / let winget decide (default: `machine`) |
 | `--help` | Show help |
 
@@ -121,8 +121,9 @@ clean_disk.cmd [options]
 |-----------|-------------|
 | `-DryRun` | Show plan without deleting |
 | `-Tier safe\|developer\|aggressive` | Cleanup tier (overrides `config\cleanup.ini`) |
-| `-Language en\|ru` | UI language |
-| `--language en\|ru` | Same (for the CMD launcher) |
+| `-Language en\|ru\|auto` | UI language |
+| `--language en\|ru\|auto` | Same (for the CMD launcher) |
+| `--pause` | Keep the CMD window open after cleanup finishes |
 
 Cleanup tiers:
 
@@ -135,13 +136,15 @@ Cleanup tiers:
 ### OpenClaw
 
 ```cmd
-install-openclaw.cmd [--quick] [--language en|ru]
+install-openclaw.cmd [--quick|--no-onboard] [--language en|ru|auto]
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--quick` | Install without interactive onboarding |
-| `--language en\|ru` | Message language |
+| `--no-onboard` | Alias for `--quick` |
+| `--language en\|ru\|auto` | Message language |
+| `--help` | Show help without installing |
 
 ### Examples
 
@@ -244,7 +247,7 @@ AI desktop / IDE apps for winget. Format: `FLAG|WINGET_ID|DISPLAY_NAME|CLI_TOOL|
 ```
 INSTALL_CURSOR|Anysphere.Cursor|Cursor|cursor|cursor --version
 INSTALL_CLAUDE_CODE|Anthropic.ClaudeCode|Claude Code|claude|claude --version
-INSTALL_CHATGPT|9PLM9XGG6VKS|ChatGPT (incl. Codex)|||
+INSTALL_CHATGPT|9PLM9XGG6VKS|ChatGPT (incl. Codex)||
 INSTALL_CODEX_CLI|OpenAI.Codex|Codex CLI|codex|codex --version
 ```
 
@@ -358,15 +361,26 @@ When configuring OpenRouter, the script writes to the user environment:
 
 **Restart the terminal** after install.
 
+## Validation
+
+Run the repository checks with either built-in Windows PowerShell 5.1 or PowerShell 7:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\validate.ps1
+pwsh -NoProfile -File .\tests\validate.ps1
+```
+
+The validation checks PowerShell syntax, localization parity, config schemas, duplicate package IDs, cleanup path constraints, version consistency, and CMD help output. GitHub Actions runs the same checks on Windows.
+
 ## Security
 
 - Reporting and supported versions: [SECURITY.md](SECURITY.md) / [SECURITY.ru.md](SECURITY.ru.md).
-- API keys passed via CLI args and internal variables use delayed expansion, reducing command-injection risk with special characters in the key.
-- Store API keys in `config/secrets.env` (template: `secrets.env.example`) or pass via `--openrouter-key`.
+- Prefer `config/secrets.env` (template: `secrets.env.example`) for API keys. The `--openrouter-key` option is convenient but may remain visible in shell history and process inspection.
 - `secrets.env` and `/logs/` are in `.gitignore` and are not published.
 - The script does not log API key values to `logs/` (including suppressing `reg add` output when writing user env).
-- UAC for MSI installers and all-profile cleanup is normal Windows behavior.
-- Disk cleanup `-DryRun` only shows a plan; it does not delete files.
+- UAC for MSI installers and actual all-profile cleanup is normal Windows behavior.
+- Disk cleanup `-DryRun` only shows a plan, does not delete files, and does not request UAC.
+- Configured cleanup paths are constrained to their user profile or `%SystemRoot%`; links and reparse points are skipped.
 
 ## License
 

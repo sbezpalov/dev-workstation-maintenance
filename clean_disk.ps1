@@ -73,7 +73,7 @@ function Write-CleanupSummary {
         [long]$FinalFreeBytes
     )
 
-    $diskDelta = $FinalFreeBytes - $InitialFreeBytes
+    $diskDelta = if ($DryRun) { 0 } else { $FinalFreeBytes - $InitialFreeBytes }
     $drySuffix = if ($DryRun) { L 'summary.dry_run_suffix' } else { '' }
 
     Write-CleanupLog ''
@@ -96,13 +96,15 @@ function Write-CleanupSummary {
     Write-CleanupLog ''
     Write-CleanupLog (L 'summary.tracked' (Format-SizeMB $CleanupFreedBytes))
     Write-CleanupLog (L 'summary.disk_delta' (Format-SizeMB $diskDelta) ([math]::Round($diskDelta / 1GB, 2)))
-    Write-CleanupLog (L 'summary.free_on' $env:SystemDrive ([math]::Round($FinalFreeBytes / 1GB, 2)))
+    Write-CleanupLog (L 'summary.free_on' $env:SystemDrive.TrimEnd(':') ([math]::Round($FinalFreeBytes / 1GB, 2)))
     if ($LogFile) {
         Write-CleanupLog (L 'summary.log' $LogFile)
     }
 }
 
-if (-not (Test-IsAdministrator)) {
+if (-not (Test-IsAdministrator) -and $DryRun) {
+    Write-Host (L 'uac.dry_run_limited') -ForegroundColor Yellow
+} elseif (-not (Test-IsAdministrator)) {
     Write-Host (L 'uac.need_admin') -ForegroundColor Yellow
     Write-Host (L 'uac.prompt') -ForegroundColor Yellow
 
@@ -111,7 +113,6 @@ if (-not (Test-IsAdministrator)) {
         '-ExecutionPolicy', 'Bypass',
         '-File', $PSCommandPath
     )
-    if ($DryRun) { $elevateArgs += '-DryRun' }
     if ($Tier) { $elevateArgs += @('-Tier', $Tier) }
     $elevateArgs += @('-Language', $CleanupLang)
 
@@ -140,8 +141,7 @@ Import-CleanupConfig
 . (Join-Path -Path $ScriptDir -ChildPath 'lib\cleanup-user.ps1')
 . (Join-Path -Path $ScriptDir -ChildPath 'lib\cleanup-system.ps1')
 
-$driveName = $env:SystemDrive.TrimEnd(':')
-$initialFree = (Get-PSDrive -Name $driveName).Free
+$initialFree = Get-SystemDriveFreeBytes
 
 Write-CleanupLog '============================================================'
 Write-CleanupLog (L 'start.header' $env:SystemDrive)
@@ -152,5 +152,5 @@ Write-CleanupLog '============================================================'
 Invoke-UserCleanup
 Invoke-SystemCleanup
 
-$finalFree = (Get-PSDrive -Name $driveName).Free
+$finalFree = Get-SystemDriveFreeBytes
 Write-CleanupSummary -InitialFreeBytes $initialFree -FinalFreeBytes $finalFree

@@ -21,6 +21,7 @@ copy config\secrets.env.example config\secrets.env
 - Windows 11 (или Windows 10 с App Installer / `winget`)
 - Не коммитьте `config/secrets.env` и содержимое `logs/`
 - Для тестов предпочитайте `--dry-run` / `-DryRun`
+- Перед отправкой изменений запустите `pwsh -NoProfile -File .\tests\validate.ps1`
 
 ## Как помочь
 

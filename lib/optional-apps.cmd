@@ -51,7 +51,7 @@ if "!DRY_RUN!"=="1" (
 )
 
 set "APP_ACTION=install"
-winget list --id "%APP_ID%" --disable-interactivity >nul 2>&1
+winget list --id "%APP_ID%" --exact --disable-interactivity >nul 2>&1
 if !ERRORLEVEL! == 0 set "APP_ACTION=upgrade"
 
 call :log "!I18N_optional_apps_winget_action!"
@@ -74,17 +74,17 @@ exit /b 0
 set "WG_ACTION=%~1"
 set "WG_ID=%~2"
 if /i "%WG_ACTION%"=="upgrade" (
-    winget upgrade --id "%WG_ID%" !WINGET_SCOPE_ARGS! --accept-source-agreements --accept-package-agreements --disable-interactivity >> "!LOG_FILE!" 2>&1
+    winget upgrade --id "%WG_ID%" --exact !WINGET_SCOPE_ARGS! --accept-source-agreements --accept-package-agreements --disable-interactivity >> "!LOG_FILE!" 2>&1
 ) else (
-    winget install --id "%WG_ID%" !WINGET_SCOPE_ARGS! --accept-source-agreements --accept-package-agreements --disable-interactivity >> "!LOG_FILE!" 2>&1
+    winget install --id "%WG_ID%" --exact !WINGET_SCOPE_ARGS! --accept-source-agreements --accept-package-agreements --disable-interactivity >> "!LOG_FILE!" 2>&1
 )
 if !ERRORLEVEL! == 0 exit /b 0
 if "!WINGET_SCOPE_ARGS!"=="" exit /b 1
 call :log "!I18N_maintain_winget_scope_fallback!"
 if /i "%WG_ACTION%"=="upgrade" (
-    winget upgrade --id "%WG_ID%" --accept-source-agreements --accept-package-agreements --disable-interactivity >> "!LOG_FILE!" 2>&1
+    winget upgrade --id "%WG_ID%" --exact --accept-source-agreements --accept-package-agreements --disable-interactivity >> "!LOG_FILE!" 2>&1
 ) else (
-    winget install --id "%WG_ID%" --accept-source-agreements --accept-package-agreements --disable-interactivity >> "!LOG_FILE!" 2>&1
+    winget install --id "%WG_ID%" --exact --accept-source-agreements --accept-package-agreements --disable-interactivity >> "!LOG_FILE!" 2>&1
 )
 exit /b !ERRORLEVEL!
 
@@ -94,6 +94,9 @@ if not exist "%OPTIONAL_APPS_FILE%" exit /b 0
 
 call :log ""
 call :log "!I18N_optional_apps_health_title!"
+set "OPTIONAL_APPS_HAS_WINGET=0"
+where winget >nul 2>&1
+if !ERRORLEVEL! == 0 set "OPTIONAL_APPS_HAS_WINGET=1"
 
 for /f "usebackq tokens=1,2,3,4,5 delims=|" %%a in ("%OPTIONAL_APPS_FILE%") do (
     set "LINE=%%a"
@@ -123,13 +126,18 @@ if defined CLI_TOOL if not "%CLI_TOOL%"=="" (
     goto :report_app_done
 )
 
-winget list --id "%APP_ID%" --disable-interactivity 2>nul | findstr /i /c:"%APP_ID%" >nul 2>&1
+if "!OPTIONAL_APPS_HAS_WINGET!"=="0" (
+    call :log "!I18N_optional_apps_winget_unavailable!"
+    goto :report_app_done
+)
+
+winget list --id "%APP_ID%" --exact --disable-interactivity 2>nul | findstr /i /c:"%APP_ID%" >nul 2>&1
 if !ERRORLEVEL! neq 0 (
     call :log "!I18N_optional_apps_not_installed!"
 ) else (
     set "APP_VER="
     set "FOUND=0"
-    for /f "usebackq delims=" %%i in (`winget list --id "%APP_ID%" --disable-interactivity 2^>nul ^| findstr /i /c:"%APP_ID%"`) do (
+    for /f "usebackq delims=" %%i in (`winget list --id "%APP_ID%" --exact --disable-interactivity 2^>nul ^| findstr /i /c:"%APP_ID%"`) do (
         set "FOUND=1"
         set "LINE=%%i"
         set "VERSION_PART=!LINE:*%APP_ID%=!"

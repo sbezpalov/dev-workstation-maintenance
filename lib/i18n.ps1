@@ -86,7 +86,7 @@ function Get-ProjectMsg {
     }
 
     $message = $table[$Key]
-    if ($Format -and @($Format).Count -gt 0) {
+    if ($null -ne $Format -and @($Format).Count -gt 0) {
         $culture = if ($ProjectLang -eq 'ru') { 'ru-RU' } else { 'en-US' }
         return [string]::Format(
             [System.Globalization.CultureInfo]::GetCultureInfo($culture),

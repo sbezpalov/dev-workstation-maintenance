@@ -1,0 +1,25 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate with Windows PowerShell 5.1
+        shell: powershell
+        run: ./tests/validate.ps1
+
+      - name: Validate with PowerShell 7
+        shell: pwsh
+        run: ./tests/validate.ps1

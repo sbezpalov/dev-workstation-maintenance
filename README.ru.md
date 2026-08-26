@@ -49,7 +49,7 @@ Python нужен для IDE и AI-инструментов (Cursor, Antigravity
 
 - Языки: `en` (по умолчанию), `ru`, `auto` (язык интерфейса Windows)
 - Настройка по умолчанию: `LANGUAGE=en` в `config/project.ini`
-- Переопределение из CLI: `--language en|ru` (CMD) или `-Language en|ru` (PowerShell)
+- Переопределение из CLI: `--language en|ru|auto` (CMD) или `-Language en|ru|auto` (PowerShell)
 - Локализованы все пользовательские сообщения: обслуживание, OpenClaw, OpenRouter, optional apps, очистка диска, планировщик
 
 ## Требования
@@ -107,7 +107,7 @@ maintain-dev-workstation.cmd [options]
 | `--openclaw-npm` | OpenClaw через npm вместо install.ps1 |
 | `--with-openrouter` | Настроить OpenRouter + CLI |
 | `--openrouter-key KEY` | API-ключ OpenRouter (`sk-or-v1-...`) |
-| `--language en\|ru` | Язык интерфейса (по умолчанию: `en`) |
+| `--language en\|ru\|auto` | Язык интерфейса (по умолчанию: `en`) |
 | `--scope machine\|user\|auto` | Область winget: на компьютер / на пользователя / как решит winget (по умолчанию: `machine`) |
 | `--help` | Справка |
 
@@ -121,8 +121,9 @@ clean_disk.cmd [options]
 |----------|----------|
 | `-DryRun` | Показать план без удаления |
 | `-Tier safe\|developer\|aggressive` | Уровень очистки (переопределяет `config\cleanup.ini`) |
-| `-Language en\|ru` | Язык интерфейса |
-| `--language en\|ru` | То же (для CMD-лаунчера) |
+| `-Language en\|ru\|auto` | Язык интерфейса |
+| `--language en\|ru\|auto` | То же (для CMD-лаунчера) |
+| `--pause` | Оставить окно CMD открытым после завершения очистки |
 
 Уровни очистки:
 
@@ -135,13 +136,15 @@ clean_disk.cmd [options]
 ### OpenClaw
 
 ```cmd
-install-openclaw.cmd [--quick] [--language en|ru]
+install-openclaw.cmd [--quick|--no-onboard] [--language en|ru|auto]
 ```
 
 | Флаг | Описание |
 |------|----------|
 | `--quick` | Установка без интерактивного onboarding |
-| `--language en\|ru` | Язык сообщений |
+| `--no-onboard` | Псевдоним для `--quick` |
+| `--language en\|ru\|auto` | Язык сообщений |
+| `--help` | Показать справку без установки |
 
 ### Примеры
 
@@ -244,7 +247,7 @@ INSTALL_PERPLEXITY_COMET=0
 ```
 INSTALL_CURSOR|Anysphere.Cursor|Cursor|cursor|cursor --version
 INSTALL_CLAUDE_CODE|Anthropic.ClaudeCode|Claude Code|claude|claude --version
-INSTALL_CHATGPT|9PLM9XGG6VKS|ChatGPT (incl. Codex)|||
+INSTALL_CHATGPT|9PLM9XGG6VKS|ChatGPT (incl. Codex)||
 INSTALL_CODEX_CLI|OpenAI.Codex|Codex CLI|codex|codex --version
 ```
 
@@ -358,15 +361,26 @@ dev-workstation-maintenance/
 
 После установки **перезапустите терминал**.
 
+## Проверка проекта
+
+Запустите проверки через встроенный Windows PowerShell 5.1 или PowerShell 7:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\validate.ps1
+pwsh -NoProfile -File .\tests\validate.ps1
+```
+
+Проверяются синтаксис PowerShell, паритет локализации, схемы конфигурации, дубликаты package ID, ограничения путей очистки, согласованность версии и справка CMD. GitHub Actions выполняет те же проверки на Windows.
+
 ## Безопасность
 
 - Подробности и ответственное раскрытие: [SECURITY.ru.md](SECURITY.ru.md) / [SECURITY.md](SECURITY.md).
-- Передача API-ключей: аргументы командной строки и внутренние переменные обрабатываются через delayed expansion, что снижает риск инъекций команд при спецсимволах в ключе.
-- API-ключи храните в `config/secrets.env` (шаблон — `secrets.env.example`) или передавайте через `--openrouter-key`.
+- Для API-ключей предпочтителен `config/secrets.env` (шаблон — `secrets.env.example`). Опция `--openrouter-key` удобна, но ключ может остаться в истории оболочки и быть виден при инспекции процессов.
 - `secrets.env` и `/logs/` в `.gitignore` — не попадают в публичный репозиторий.
 - Скрипт не логирует значения API-ключей в `logs/` (в т.ч. вывод `reg add` при записи user env подавляется).
-- UAC для MSI-инсталляторов и очистки всех профилей — штатное поведение Windows.
-- `-DryRun` у очистки диска только показывает план, файлы не удаляет.
+- UAC для MSI-инсталляторов и фактической очистки всех профилей — штатное поведение Windows.
+- `-DryRun` у очистки диска только показывает план, не удаляет файлы и не запрашивает UAC.
+- Пути очистки ограничены соответствующим профилем пользователя или `%SystemRoot%`; ссылки и reparse points пропускаются.
 
 ## Лицензия
 
